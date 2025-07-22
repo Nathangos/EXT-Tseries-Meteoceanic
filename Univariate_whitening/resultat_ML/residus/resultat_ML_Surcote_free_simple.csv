@@ -1,0 +1,5 @@
+Input,SVM,GLM,RForest
+Hyper-params,kernel : radial,link : logit,Nb-trees : 50
+X,52-65,50-61,52-65
+l(X),52-63,51-63,46-58
+A(X),56-65,47-60,61-73

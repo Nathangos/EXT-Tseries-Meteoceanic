@@ -1,0 +1,5 @@
+"","Noyau utilise","F1 score","Prop_simulations_pred","Vraie_proportion"
+"1","linear","0.54","0.47","0.5"
+"2","sigmoid","0.48","0.51","0.5"
+"3","polynomial","0.27","0.12","0.5"
+"4","radial","0.54","0.6","0.5"
