@@ -20,22 +20,16 @@ F_names<-ls()
 nb_coeurs<-detectCores()-4
 coeurs<-makeCluster(nb_coeurs)
 clusterExport(coeurs,varlist=F_names)
-annees<-seq.int(1979,2016,by=1)
-dataFiles<-c()
-
-for(elt in annees){
-  commentaire<-paste0("data/evt_",elt,"*.csv")
-  file_year<- parLapply(cl=coeurs,Sys.glob(commentaire), read.csv)
-  dataFiles<-c(dataFiles,file_year)
-}
+df<-read.csv(file = "Data_Surge.csv")[,c(2:39)]
 ```
+
 
 ```{r}
 creation_df_sans_tendance<-function(df,nom_variable,coeurs,SELECT,saut_pas){
-  obs<-parLapply(cl=coeurs,df,f_nom_variable,nom_variable)
-  
+  obs<-df[,c(1:37)]
   # ACF of the norm series ----------------------------------------------
-  Svariable<-parSapply(cl=coeurs,obs,calcul_norme_L2)
+  Svariable<-apply(obs,calcul_norme_L2,
+                      MARGIN=1)
   ACF_S<-acf(Svariable,lag=1000,plot = FALSE)
   PACF_S<-pacf(Svariable,lag=1000,plot = FALSE)
   plot(ACF_S,ylim=c(-1,1),main=bquote("ACF of N"[.(nom_variable)]))
@@ -46,32 +40,29 @@ creation_df_sans_tendance<-function(df,nom_variable,coeurs,SELECT,saut_pas){
     fnct_t<-function(coord,obs){
       return(obs[coord])
     }
-    variable_t<-sapply(obs,fnct_t,coord=t)
+    variable_t<-obs[,t]
     ACF_t<-acf(variable_t,lag=400,plot = FALSE)
     PACF_t<-pacf(variable_t,lag=400,plot = FALSE)
     vecty<-(30:length(variable_t)/2)
     plot(ACF_t,ylim=c(-1,1),main="",cex.lab=1.5)
     plot(PACF_t,ylim=c(-1,1),main="",cex.lab=1.5)
   }
-  TIME<-parLapply(cl=coeurs,df,f_nom_variable,"Date")
-  intermed<-t(do.call(cbind.data.frame,TIME))
-  rownames(intermed)<-1:nrow(intermed)
 
   # Date pic de la marée.  --------------------------------------------------
-  date_compar<-intermed[,19]
+  date_compar<-df$Date
   colonne<-as.numeric(substr(date_compar,4,5))
   vecteur_hiver<-c(1:3,9:12)
   Indices_autres<-which(!colonne%in%vecteur_hiver)
   Indices_hiver<-which(colonne%in%vecteur_hiver)
   date_compar_hiver<-date_compar[Indices_hiver]
-  obs_hiver<-obs[Indices_hiver]
+  obs_hiver<-obs[Indices_hiver,]
+  L_hiver<-nrow(obs_hiver)
   #ACF obtenu
-  variable_hiver1<-sapply(obs_hiver,fnct_t,coord=1)
+  variable_hiver1<-obs_hiver[,1]
   ACF_t<-acf(variable_hiver1,lag=1000,plot = FALSE)
   plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",nom_variable,"at t=1 (winter)"))
   
-  L_hiver<-length(obs_hiver)
-  obs_autres<-obs[Indices_autres]
+  obs_autres<-obs[Indices_autres,]
   # Linear regression -----------------------------------------------------
   vecteur_reg_lin<-c()
   vecteur_r<-c()
@@ -81,7 +72,7 @@ creation_df_sans_tendance<-function(df,nom_variable,coeurs,SELECT,saut_pas){
   for (col in c(1:37)){
     
     # Winter ---------
-    variable<-sapply(obs_hiver,FUN = function(t,serie){return(serie[t])},t=col)
+    variable<-obs_hiver[,col]
     L<-length(variable)
     vecteur_temps_milieu<-c(1:L)
     reg<-lm(variable~vecteur_temps_milieu)
@@ -100,11 +91,11 @@ creation_df_sans_tendance<-function(df,nom_variable,coeurs,SELECT,saut_pas){
   df_signf<-cbind.data.frame(vecteur_signf)
   colnames(df_signf)<-c(paste("p_valeur de",nom_variable,"(Hiver)"))
   Residus_hiver<-matrix(vecteur_r,nrow=L_hiver)
+  print(dim(Residus_hiver))
   matrice_tendance<-matrix(vecteur_reg_lin,nrow=L_hiver)
   fin<-ncol(Residus_hiver)+2
-  TEST_moyenne<-t(cbind.data.frame(obs_hiver))
   for (t in 1){
-    variable_t<-sapply(obs,fnct_t,coord=t)
+    variable_t<-obs[,t]
     ACF_t<-acf(variable_t,lag=1000,plot = FALSE)
     PACF_t<-pacf(variable_t,lag=1000,plot = FALSE)
     vecty<-(30:length(variable_t)/2)
@@ -140,14 +131,12 @@ creation_df_sans_tendance<-function(df,nom_variable,coeurs,SELECT,saut_pas){
             x= date_compar_final)
   
   # ACF post selection --------------------------------------------------------
-  Nvariable<-parApply(cl=coeurs,Residus_detrend_hiver,calcul_norme_L2,MARGIN=1)
-  ACF_S<-acf(Nvariable,lag=1000,plot = FALSE)
-  PACF_S<-pacf(Nvariable,lag=1000,plot = FALSE)
+  ACF_S<-acf(NL2,lag=1000,plot = FALSE)
+  PACF_S<-pacf(NL2,lag=1000,plot = FALSE)
   plot(ACF_S,ylim=c(-1,1),main=bquote("ACF après transformation de N"[.(nom_variable)]))
   ACF_residus<-acf(Residus_detrend_hiver[,1],lag=1000,plot = FALSE)
   PACF_residus<-pacf(Residus_detrend_hiver[,1],lag=1000,plot = FALSE)
   plot(ACF_residus,ylim=c(-1,1),main=paste("ACF of",nom_variable," detrended at t=",t," (winter), one out of",saut_pas))
-  print(length(Nvariable))
   plot(PACF_residus,ylim=c(-1,1),main=paste("PACF of",nom_variable," detrended at t=",t," (winter), one out of",saut_pas))
   
   # Presentation résultat ---------------------------------------------------
@@ -178,8 +167,9 @@ creation_df_sans_tendance<-function(df,nom_variable,coeurs,SELECT,saut_pas){
     ggtitle(TITRE)+
     ylab("Densité")
   print(PV)  
-  plot(colMeans(TEST_moyenne),main=paste0("Fonction moyenne pour ",nom_variable," en hiver"))
+  plot(colMeans(obs_hiver),main=paste0("Fonction moyenne pour ",nom_variable," en hiver"))
   plot(colMeans(Residus_detrend_hiver),main=paste0("Fonction moyenne pour les résidus de ",nom_variable," en hiver"))
+  print(dim(Residus_detrend_hiver))
   write.csv(x = Residus_detrend_hiver,
             file =paste0("data_detrend_Winter/",nom_variable,"_detrend.csv"))
   write.csv(x=Mat,file=paste0("data_detrend_Winter/RL_",nom_variable,".csv"))
@@ -189,8 +179,9 @@ creation_df_sans_tendance<-function(df,nom_variable,coeurs,SELECT,saut_pas){
 ```
 
 ```{r}
-Result_detrend_deseason<-creation_df_sans_tendance(df=dataFiles,nom_variable = "Surcote",coeurs=coeurs,SELECT=TRUE,saut_pas = 3)
+Result_detrend_deseason<-creation_df_sans_tendance(df=df,nom_variable = "Surcote",coeurs=coeurs,SELECT=TRUE,saut_pas = 3)
 ```
+
 ```{r}
 # End of the detrending.
 stopCluster(coeurs)

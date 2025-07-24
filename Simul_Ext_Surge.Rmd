@@ -537,6 +537,7 @@ Lperfs_Y<-Running_perfs_ML(Base_simul = Simul,Base_data = Obs_ext,
                    NB_shown_ROC = 20)
 resultat[1,]<-Lperfs_Y$Accuracy$qu_accuracy
 ```
+
 ```{r}
 Lperfs_L2<-Running_perfs_ML(Base_simul = NL2_simul,Base_data = NL2_ext, 
                               hyp_param = H_Params, NB_times = NB_times,alpha_prop=ALPHA_PROP, 

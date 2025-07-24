@@ -28,7 +28,8 @@ clusterExport(coeurs,varlist=F_names)
 ```{r}
 fonction_arima_variable<-function(coeurs,nom_variable,p,q,P,D,Q,S){
   nom_recherche<-paste0("data_detrend_Winter/",nom_variable,"_detrend.csv")
-  obs<-read.csv(nom_recherche)[,2:38]
+  obs<-read.csv(nom_recherche)[,c(2:38)]
+  colnames(obs)<-c(1:37)
   if(nom_variable=="Surcote"){
     nom_variable<-"S"
   }
@@ -195,4 +196,5 @@ p_sar<-1
 nom_variable<-"Surcote"
 Result_AR1<-fonction_arima_variable(coeurs = coeurs,nom_variable = nom_variable,P=p_sar,Q=0,D=0,p=0,q=0,S=S)
 ```
+
 
