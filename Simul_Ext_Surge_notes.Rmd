@@ -1,0 +1,249 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+rm(list=ls())
+set.seed(133)
+par(mfrow=c(1,1))
+source("fonctions/fonctions.R")
+require(reshape2)
+require(ggplot2)
+require(gridExtra)
+require(grid)
+require(dplyr)
+require(extRemes)
+require(ggside)
+require(scales)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r}
+cols_<-c("data"="blue","simulations"="orange","confidence_band"="darkblue")
+```
+
+```{r}
+Simulate_extreme_from_resid<-function(nb_decal,Sample_taken,
+                                        obs,Mod_AR,j,Simul_epsi){
+    indice<-sort(c(Sample_taken[j])+c(-nb_decal:0),decreasing = TRUE)
+    individu_pris<-obs[indice,]
+    Prediction<-as.numeric(sapply(X = c(1:ncol(obs)),FUN = Function_AR_p,
+                                  obs_eve=individu_pris,
+                                  epsilon_t_plus1=unlist(Simul_epsi[j,]),
+                                  Modele_ar_par_t = Mod_AR))
+    return(Prediction)
+}
+```
+
+```{r}
+nom_variable<-"Surcote"
+name_for_file<-ifelse(nom_variable=="Surcote","S",no = nom_variable)
+fich_reg1<-paste0("residuals/",name_for_file,"_Reg_AR1.csv")
+
+fichier_Simulation_residus <-paste0("residuals/Simulations_",nom_variable,"_avec_std.csv")
+fichier_idx_extremes<-paste0("inds_extremes_donnees_",nom_variable,".csv")
+dates_Johanna<-c("10/03/2008","08/03/2008", 
+                 "09/03/2008")
+```
+
+```{r}
+nom_recherche<-paste0("data_detrend_Winter/",nom_variable,"_detrend.csv")
+
+# Observer la norme des résidus -------------------------------------------
+Residus<-read.csv(paste0("residuals/",nom_variable,"_residuals.csv"))[,2:38]
+colnames(Residus)<-c(1:ncol(Residus))
+
+NL2_residus<-apply(X = Residus,MARGIN = 1,FUN = calcul_norme_L2)
+obs<-read.csv(nom_recherche)[,2:38]
+colnames(obs)<-c(1:37)
+
+# Import des individus extrêmes dans la base ------------------------------
+fichier_idx_extremes<-paste0("residuals/",fichier_idx_extremes)
+Inds_extremes_L2<-read.csv(fichier_idx_extremes)[,2]
+Individus_extremes_base<-obs[Inds_extremes_L2,]
+rownames(Individus_extremes_base)<-c(1:nrow(Individus_extremes_base))
+NL2_residus_exts<-NL2_residus[Inds_extremes_L2]
+
+# Import dates ------------------------------------------------------------
+Dates_prises<-read.csv(file="data_detrend_Winter/dates.csv")[,2]
+Dates_prises_extremes<-Dates_prises[Inds_extremes_L2]
+mini_date<-substr(Dates_prises_extremes,1,10)
+indice_Joh<-which(mini_date%in%dates_Johanna)
+date_J_found<-Dates_prises_extremes[indice_Joh]
+# On prend la dernière obs ------------------------------------------------
+Simulations_epsi<-read.csv(file=fichier_Simulation_residus)[,2:38]
+NL2_epsi_simul<-apply(X=Simulations_epsi,
+                      MARGIN=1,FUN = calcul_norme_L2)
+par(mfrow=c(1,2))
+colnames(Simulations_epsi)<-c(1:37)
+matplot(t(Simulations_epsi),type="l")
+matplot(t(Residus[Inds_extremes_L2,]),type="l")
+par(mfrow=c(1,1))
+
+# Eventual relation between  epsilon_t et residus -------------------------------------------
+number_obs<-nrow(obs)-1
+df_resultat<-matrix(NA,nrow = 37,ncol = 4)
+DF_EV_resid<-read.csv(file=paste0("Work_RVariations/EVA_",nom_variable,"_residus.csv"))[,2:5]
+vect_threshold_GPD<-DF_EV_resid$seuil_t
+
+# Correlation_t=19 --------------------------------------------------------
+val_peak<-obs[1:number_obs,19]
+r_peak<-Residus[c(2:nrow(obs)),19]
+
+for(t in c(1:ncol(obs))){
+
+  # subset of extreme/Mann Whitney ------------------------------------------
+  seuil_t<-vect_threshold_GPD[t]
+  series_r<-Residus[c(2:nrow(obs)),t]
+  veille_r<-obs[1:number_obs,t]
+  indices_ext<-which(series_r>seuil_t)
+  indice_non_ext<-which(series_r<=seuil_t)
+  subset1<-veille_r[indices_ext]
+  subset2<-veille_r[indice_non_ext]
+
+  # Correlation test --------------------------------------------------------
+
+  Pearson_t<-cor.test(x = series_r,y=veille_r,method="pearson")$p.value
+  Spearman_t<-cor.test(x = series_r,y=veille_r,method="spearman")$p.value
+  Kendall_t<-cor.test(x = series_r,y=veille_r,method="kendall")$p.value
+  MaWhitney_U<-wilcox.test(subset1,subset2)$p.value
+  df_resultat[t,]<-c(Pearson_t, Spearman_t,
+                     Kendall_t,MaWhitney_U)
+}
+
+# Modele AR ---------------------------------------------------------------
+Mod_AR<-read.csv(file=fich_reg1)
+Fin<-ncol(Mod_AR)
+Mod_AR<-Mod_AR[,c(2:Fin)]
+
+M<-nrow(Simulations_epsi)
+Y_Mat<-matrix(NA,nrow = M,ncol = 37)
+echantillonnage_YO<-function(niv_simul,echs_N2){
+  return(which.min(abs(niv_simul-echs_N2)))
+}
+# Se baser sur des obs non exts -------------------------------------------
+Indices_non_ext<-which(!c(1:nrow(obs))%in%Inds_extremes_L2==TRUE)
+
+NL2<-apply(X = obs,MARGIN = 1,FUN = calcul_norme_L2)
+inds_non_nuls<-which(NL2_residus>0)
+plot(NL2_residus[inds_non_nuls],NL2[inds_non_nuls],
+     main="Relation des deux normes", 
+     xlab=expression("Norme de epsilon"[M]),ylab=expression("Norme de Y"[M]))
+```
+
+```{r}
+y<-NL2[inds_non_nuls]
+x<-NL2_residus[inds_non_nuls]
+modele_lin_epsi_Y<-lm(y~x)
+JBtest<-tseries::jarque.bera.test(modele_lin_epsi_Y$residuals)
+seuil_y<-quantile(y,0.75)
+seuil_x<-quantile(x,0.75)
+number_obs<-length(NL2)-1
+NL2_veille<-NL2[1:number_obs]
+filtre<-min(NL2[Inds_extremes_L2])
+
+prob_non_exceedance<-mean(as.numeric(NL2<=filtre))
+print("Return period")
+npy<-length(NL2)/37
+periode_retour<-(npy*(1-prob_non_exceedance))^(-1)
+Indices_non_ext<-which(NL2<filtre)
+par(mfrow=c(1,1))
+N_XO<-c()
+df_relation_dsbase<-cbind.data.frame(NL2_residus[2:length(NL2_residus)],
+                                     NL2_veille)
+
+colnames(df_relation_dsbase)<-c("epsi","L2_indu_pris")
+
+inds_chosen<-which((df_relation_dsbase$epsi>0))
+df_subset<-df_relation_dsbase[inds_chosen,]
+ech_fenetre<-sapply(X =NL2_epsi_simul,Sample_window,
+         y=NL2_veille,x_window=NL2_residus[2:length(NL2_residus)],size_window=20)
+Echantillons_pris<-ech_fenetre
+L<-nrow(obs)-1
+sub_obs<-NL2[1:L]
+sub_resid<-NL2_residus[2:nrow(obs)]
+sub_obs<-sub_obs[which(sub_resid>0)]
+sub_resid<-subset(sub_resid,sub_resid>0)
+df<-cbind.data.frame(sub_obs,sub_resid)
+colnames(df)<-c("obs_passe","resid")
+modele_choix<-lm(obs_passe~resid,data = df)
+predictions_niveaux_passe<-predict(modele_choix,data.frame(resid=NL2_epsi_simul))
+
+par(mfrow=c(1,2))
+plot(density(NL2[Echantillons_pris]),main="norme L2 des obs (X0) prises")
+plot(density(NL2[Inds_extremes_L2-1]),main="norme L2 veille des obs extremes")
+par(mfrow=c(1,1))
+nb_decal<-0
+if(ncol(Mod_AR)>2){
+  nb_decal<-ncol(Mod_AR)-2
+}
+Y_Mat<-t(sapply(c(1:M),Simulate_extreme_from_resid,nb_decal = nb_decal,
+                     Sample_taken = Echantillons_pris ,
+                     Mod_AR = Mod_AR,Simul_epsi = Simulations_epsi,
+                     obs = obs))
+Y_Mat<-as.data.frame(Y_Mat)
+colnames(Y_Mat)<-c(1:ncol(Y_Mat))
+NL2_simulations<-apply(X =  Y_Mat,MARGIN = 1,FUN=calcul_norme_L2)
+print("simul vs veille--YO")
+test<-Inds_extremes_L2[2]-1
+# Simulation evenement type Johanna ---------------------------------------
+Veille_Johann<-obs[Inds_extremes_L2[indice_Joh]-1,]
+date_veille_J<-Dates_prises[Inds_extremes_L2[indice_Joh]-1]
+Johann<-obs[Inds_extremes_L2[indice_Joh],]
+Next_day_extreme<-obs[Inds_extremes_L2[indice_Joh]+1,]
+M_Prediction_obs_J<-t(sapply(c(1:nrow(Simulations_epsi)),
+                            FUN = function(x)
+    {vecteur<-as.numeric(sapply(X = c(1:ncol(obs)),FUN = Function_AR_p,
+                                                   obs_eve=Veille_Johann,epsilon_t_plus1=unlist(Simulations_epsi[x,]),
+                                                   Modele_ar_par_t = Mod_AR))
+     return(vecteur)}))
+M_Prediction_consecutive_extreme<-t(sapply(c(1:nrow(Simulations_epsi)),
+                           FUN = function(x)
+                           {vecteur<-as.numeric(sapply(X = c(1:ncol(obs)),FUN = Function_AR_p,obs_eve=Johann,             epsilon_t_plus1=unlist(Simulations_epsi[x,]),Modele_ar_par_t = Mod_AR))
+                           return(vecteur)}))
+
+# versus observation normal -----------------------------------------------
+
+X_zero_nomal<-obs[Echantillons_pris[1],]
+date_XOnormal<-Dates_prises[Echantillons_pris[1]]
+Next_day_normal<-obs[Echantillons_pris[1]+1,]
+
+M_Prediction_normal_day<-t(sapply(c(1:nrow(Simulations_epsi)),
+         FUN = function(x){vecteur<-as.numeric(sapply(X = c(1:ncol(obs)),FUN = Function_AR_p, obs_eve=X_zero_nomal,epsilon_t_plus1=unlist(Simulations_epsi[x,]),
+          Modele_ar_par_t = Mod_AR))
+               return(vecteur)}))
+
+# Relation veille_XO vs norme epsilon -------------------------------------
+NL2_epsi_simul<-apply(X = Simulations_epsi,MARGIN = 1,
+                      FUN = calcul_norme_L2)
+df_residus_vs_veille_simul<-cbind.data.frame(NL2_epsi_simul,NL2[Echantillons_pris])
+colnames(df_residus_vs_veille_simul)<-c("simul_epsi","L2_indu_pris")
+df_residus_vs_veille_simul$indicatrice<-sapply(Echantillons_pris,function(x){return(x%in%Inds_extremes_L2)})
+
+  # Simulations -------------------------------------------------------------
+compar_pic<-cbind.data.frame(r_peak,val_peak)
+colnames(compar_pic)<-c("r_peak","val_peak")
+GG_rel_v2<-ggplot(data=df_residus_vs_veille_simul,aes(x=simul_epsi,
+                                                      y=L2_indu_pris,col="simulations"))+
+  geom_point(pch=17)+
+  xlab(expression("L2 norm of "~epsilon[M]))+
+  ylab(expression("L2 norm of "~tilde(X)[M-1]))+
+  geom_point(data = df_relation_dsbase,aes(y=L2_indu_pris,
+                                           x=epsi,col="data"))+
+  scale_color_manual(values=c("simulations"="orange","data"="blue"))+
+  labs(col="Legend")+
+  theme(axis.title=element_text(size=15),
+        legend.text=element_text(size=10))
+
+print(GG_rel_v2)
+```
+
