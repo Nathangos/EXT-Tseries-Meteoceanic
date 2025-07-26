@@ -1,0 +1,197 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```{r}
+rm(list=ls())
+set.seed(133)
+#### Packages. #####
+require(corrplot)
+require(ggplot2)
+require(dplyr)
+require(reshape2)
+require(FactoMineR)
+require(fda)
+require(extRemes)
+require(parallel)
+require(POT)
+source("fonctions/fonctions.R")
+
+```
+
+```{r}
+F_names<-ls()
+nb_coeurs<-detectCores()-4
+coeurs<-makeCluster(nb_coeurs)
+clusterExport(coeurs,varlist=F_names)
+df<-read.csv(file = "Data_Surge.csv")[,c(2:39)]
+```
+
+
+```{r}
+creation_df_sans_tendance<-function(df,nom_variable,coeurs,SELECT,saut_pas){
+  obs<-df[,c(1:37)]
+  # ACF of the norm series ----------------------------------------------
+  Svariable<-apply(obs,calcul_norme_L2,
+                      MARGIN=1)
+  ACF_S<-acf(Svariable,lag=1000,plot = FALSE)
+  PACF_S<-pacf(Svariable,lag=1000,plot = FALSE)
+  plot(ACF_S,ylim=c(-1,1),main=bquote("ACF of N"[.(nom_variable)]))
+  plot(PACF_S,ylim=c(-1,1),main=bquote("PACF of N"[.(nom_variable)]))
+  
+  # ACF at each time.  ---------------------------------------------------
+  for (t in 1:1){
+    fnct_t<-function(coord,obs){
+      return(obs[coord])
+    }
+    variable_t<-obs[,t]
+    ACF_t<-acf(variable_t,lag=400,plot = FALSE)
+    PACF_t<-pacf(variable_t,lag=400,plot = FALSE)
+    vecty<-(30:length(variable_t)/2)
+    plot(ACF_t,ylim=c(-1,1),main="",cex.lab=1.5)
+    plot(PACF_t,ylim=c(-1,1),main="",cex.lab=1.5)
+  }
+
+  # Date pic de la marée.  --------------------------------------------------
+  date_compar<-df$Date
+  colonne<-as.numeric(substr(date_compar,4,5))
+  vecteur_hiver<-c(1:3,9:12)
+  Indices_autres<-which(!colonne%in%vecteur_hiver)
+  Indices_hiver<-which(colonne%in%vecteur_hiver)
+  date_compar_hiver<-date_compar[Indices_hiver]
+  obs_hiver<-obs[Indices_hiver,]
+  L_hiver<-nrow(obs_hiver)
+  #ACF obtenu
+  variable_hiver1<-obs_hiver[,1]
+  ACF_t<-acf(variable_hiver1,lag=1000,plot = FALSE)
+  plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",nom_variable,"at t=1 (winter)"))
+  
+  obs_autres<-obs[Indices_autres,]
+  # Linear regression -----------------------------------------------------
+  vecteur_reg_lin<-c()
+  vecteur_r<-c()
+  vecteur_signf<-c()
+  vecteur_beta_chap<-c()
+  vecteur_r_J<-c()
+  for (col in c(1:37)){
+    
+    # Winter ---------
+    variable<-obs_hiver[,col]
+    L<-length(variable)
+    vecteur_temps_milieu<-c(1:L)
+    reg<-lm(variable~vecteur_temps_milieu)
+    objet<-coef(summary(reg))
+    Constante<-as.numeric(predict(object = reg,newdata=data.frame(vecteur_temps_milieu=0)))
+    predictions_RL_hiver<-as.numeric(reg$fitted.values)
+    Residus<-variable-predictions_RL_hiver+Constante
+    vecteur_r<-c(vecteur_r,Residus)
+    vecteur_reg_lin<-c(vecteur_reg_lin,predictions_RL_hiver)
+    p_valeur_signf<-objet[2,4]
+    vecteur_beta_chap<-c(vecteur_beta_chap,objet[2,1])
+    vecteur_signf<-c(vecteur_signf,p_valeur_signf)
+  }
+  df_coeff<-cbind.data.frame(vecteur_beta_chap)
+  colnames(df_coeff)<-c(paste("Coefficient lineaire de",nom_variable,"(Hiver)"))
+  df_signf<-cbind.data.frame(vecteur_signf)
+  colnames(df_signf)<-c(paste("p_valeur de",nom_variable,"(Hiver)"))
+  Residus_hiver<-matrix(vecteur_r,nrow=L_hiver)
+  print(dim(Residus_hiver))
+  matrice_tendance<-matrix(vecteur_reg_lin,nrow=L_hiver)
+  fin<-ncol(Residus_hiver)+2
+  for (t in 1){
+    variable_t<-obs[,t]
+    ACF_t<-acf(variable_t,lag=1000,plot = FALSE)
+    PACF_t<-pacf(variable_t,lag=1000,plot = FALSE)
+    vecty<-(30:length(variable_t)/2)
+    if(nom_variable=="Surcote"){
+      plot(ACF_t,ylim=c(-1,1),main="")
+      plot(PACF_t,ylim=c(-1,1),main="")
+
+    }
+    else{
+      plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",nom_variable,"at t=",t," (whole data)"))
+      plot(PACF_t,ylim=c(-1,1),main=paste("PACF of",nom_variable,"at t=",t," (whole data)"))
+      
+    }
+    # Winter -----------------------------------------------------------------
+    variable_t<-Residus_hiver[,t]
+    ACF_t<-acf(variable_t,lag=1000,plot = FALSE)
+    PACF_t<-pacf(variable_t,lag=1000,plot = FALSE)
+    vecty<-(30:length(variable_t)/2)
+    plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",nom_variable," detrended at t=",t," (hiver)"))
+    plot(PACF_t,ylim=c(-1,1),main=paste("PACF of",nom_variable,"detrended at t=",t," (hiver)"))
+    
+  }
+  
+  # Take one observation out of ... -------------------------------------------------------
+  Indice_pris_hiver<-seq.int(from = 1,to = L_hiver,by = saut_pas)
+  vect_matin_soir<-rep(c("(morning)","(evening)"),length(date_compar_hiver)/2)
+  date_compar_hiver_MSOIR<-paste(date_compar_hiver,vect_matin_soir)
+  date_compar_final<-date_compar_hiver_MSOIR[Indice_pris_hiver]
+  Residus_detrend_hiver<-Residus_hiver[Indice_pris_hiver,]
+  Mat<-matrice_tendance[Indice_pris_hiver,]
+  NL2<-apply(Residus_detrend_hiver,MARGIN = 1,FUN = calcul_norme_L2)
+  write.csv(file = "data_detrend_Winter/dates.csv",
+            x= date_compar_final)
+  
+  # ACF post selection --------------------------------------------------------
+  ACF_S<-acf(NL2,lag=1000,plot = FALSE)
+  PACF_S<-pacf(NL2,lag=1000,plot = FALSE)
+  plot(ACF_S,ylim=c(-1,1),main=bquote("ACF après transformation de N"[.(nom_variable)]))
+  ACF_residus<-acf(Residus_detrend_hiver[,1],lag=1000,plot = FALSE)
+  PACF_residus<-pacf(Residus_detrend_hiver[,1],lag=1000,plot = FALSE)
+  plot(ACF_residus,ylim=c(-1,1),main=paste("ACF of",nom_variable," detrended at t=",t," (winter), one out of",saut_pas))
+  plot(PACF_residus,ylim=c(-1,1),main=paste("PACF of",nom_variable," detrended at t=",t," (winter), one out of",saut_pas))
+  
+  # Presentation résultat ---------------------------------------------------
+
+  # (1) Stat desc ---------------------------------------------------------------
+  mu_t<-colMeans(Residus_detrend_hiver)
+  sigma_t<-apply(X = Residus_detrend_hiver,MARGIN = 2,FUN = sd)
+  df_stat_desc<-cbind.data.frame(mu_t,sigma_t)
+  colnames(df_stat_desc)<-c("Moyenne","Ecart-type")
+  df_stat_desc<-melt(t(df_stat_desc))
+  colnames(df_stat_desc)<-c("Statistique","Temps","Valeur")
+  TITRESD<-paste0("Statistiques pour ",nom_variable, " en hiver")
+  STATdesc<-ggplot(data = df_stat_desc,aes(x=Temps,y=Valeur,col=Statistique,group=interaction(Statistique)))+
+    geom_line()+
+    geom_point()+
+    ggtitle(TITRESD)
+    
+  print(STATdesc)
+  
+  B<-melt(t(Residus_detrend_hiver))
+  colnames(B)<-c("Temps","Individu","Mesure")
+  B$Temps<-as.factor(B$Temps)
+  TITRE<-paste0("Densité en chaque temps pour ",nom_variable, " en hiver")
+  PV<-ggplot2::ggplot(data = B,aes(Temps,Mesure,fill=Temps))+
+    geom_violin()+
+    geom_boxplot(width=0.2)+
+    guides(fill = "none")+
+    ggtitle(TITRE)+
+    ylab("Densité")
+  print(PV)  
+  plot(colMeans(obs_hiver),main=paste0("Fonction moyenne pour ",nom_variable," en hiver"))
+  plot(colMeans(Residus_detrend_hiver),main=paste0("Fonction moyenne pour les résidus de ",nom_variable," en hiver"))
+  print(dim(Residus_detrend_hiver))
+  write.csv(x = Residus_detrend_hiver,
+            file =paste0("data_detrend_Winter/",nom_variable,"_detrend.csv"))
+  write.csv(x=Mat,file=paste0("data_detrend_Winter/RL_",nom_variable,".csv"))
+
+  return(list("Signf"=df_signf,"Coeff"=df_coeff))
+}
+```
+
+```{r}
+Result_detrend_deseason<-creation_df_sans_tendance(df=df,nom_variable = "Surcote",coeurs=coeurs,SELECT=TRUE,saut_pas = 3)
+```
+
+```{r}
+# End of the detrending.
+stopCluster(coeurs)
+```
+
