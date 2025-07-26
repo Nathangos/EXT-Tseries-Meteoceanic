@@ -1586,8 +1586,7 @@ fonction_simul_HTawn<-function(x,y,seuil_x,seuil_y,vecteur_x_reg){
   return(value_predicted)
 }
 
-Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,
-                            type_entree,j_show){
+Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,j_show){
   P_valeur_AD_excedent_GPD<-c()
   P_valeur_KS_excedent_GPD<-c()
   
@@ -1607,7 +1606,6 @@ Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,
     variable_ech_original<-donnees[,t]
     seuil_t<-quantile(variable_ech_original,1-p_ut)
     nom_graph<-ifelse(nom=="Surcote","S",nom)
-    #paste0(nom_graph," at t=",t," (",type_entree,")")
     if(t%in%j_show){
       Outils_POT_graphique(series=variable_ech_original,seuil=seuil_t,Q1=0.50,Q2=0.98,
                            dates=dates_prises,
@@ -1689,7 +1687,7 @@ Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,
                           "Theta_t","p_u_t","p_val_ADarling")
   
   # Export de la table ------------------------------------------------------
-  write.csv(x=df_EV_evol,file=paste0("../Travail_hypothèse_RV/EVA_",nom,"_",type_entree,".csv"))
+  write.csv(x=df_EV_evol,file=paste0("Work_RVariations/EVA_",nom,".csv"))
   return(P_valeur_AD_excedent_GPD)
 }
 
