@@ -19,6 +19,8 @@ require(dplyr)
 require(extRemes)
 require(ggside)
 require(scales)
+require(dplyr)
+require(corrplot)
 ```
 
 ```{r}
@@ -628,4 +630,5 @@ for(t in c(13,19,25,31)){
                      Individus_exts=Indices_exts)
 }
 ```
+
 
