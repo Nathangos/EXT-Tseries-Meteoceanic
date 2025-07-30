@@ -8,3 +8,6 @@ Our main contributions are the following:
 - Tunable aspects, allowing to produce consecutive extremes.
 - Several methods proposed to validate the simulation method, using extreme value theory, PCA decomposition and classification two-samples test. 
 
+To run the codes, first run (Detrending_Season)[./Detrending_Season.Rmd] then run ...
+
+All details ont he methods are provided in [Gorse et al. (2025)](ajout du lien!!). The methods are applied to surge data on Gavres site (French Atlantic coast). If you use this dataset, please refer to [Idier et al. (2020)](https://link.springer.com/article/10.1007/s11069-020-03882-4).
