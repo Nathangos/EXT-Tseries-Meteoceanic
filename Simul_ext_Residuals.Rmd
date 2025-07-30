@@ -36,7 +36,7 @@ clusterExport(coeurs,varlist=F_names)
 
 ```{r}
 nom_variable<-"Surcote"
-lien_donnees<-paste0("residuals/",nom_variable,"_residuals.csv")
+lien_donnees<-paste0("residuals/S_residuals.csv")
 std_donnees<-TRUE
 p_U<-rep(0.10,37)
 p_L2<-0.05

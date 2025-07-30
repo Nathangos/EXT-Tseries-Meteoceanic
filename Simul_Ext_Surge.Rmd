@@ -5,10 +5,6 @@ output:
     df_print: paged
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
-
 ```{r}
 rm(list=ls())
 set.seed(133)
@@ -63,7 +59,7 @@ nom_variable<-"Surcote"
 name_for_file<-ifelse(nom_variable=="Surcote","S",no = nom_variable)
 fich_reg1<-paste0("residuals/",name_for_file,"_Reg_AR1.csv")
 
-fichier_Simulation_residus <-paste0("residuals/Simulations_",nom_variable,"_avec_std.csv")
+fichier_Simulation_residus<-paste0("residuals/Simulations_",nom_variable,"_avec_std.csv")
 fichier_idx_extremes<-paste0("inds_extremes_donnees_",nom_variable,".csv")
 dates_Johanna<-c("10/03/2008","08/03/2008", 
                  "09/03/2008")
@@ -73,7 +69,7 @@ dates_Johanna<-c("10/03/2008","08/03/2008",
 nom_recherche<-paste0("data_detrend_Winter/",nom_variable,"_detrend.csv")
 
 # Observer la norme des résidus -------------------------------------------
-Residus<-read.csv(paste0("residuals/",nom_variable,"_residuals.csv"))[,2:38]
+Residus<-read.csv(file = "residuals/S_residuals.csv")[,2:38]
 colnames(Residus)<-c(1:ncol(Residus))
 
 NL2_residus<-apply(X = Residus,MARGIN = 1,FUN = calcul_norme_L2)

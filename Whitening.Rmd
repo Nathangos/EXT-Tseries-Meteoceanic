@@ -153,9 +153,7 @@ titre<-paste0("Resultat obtenu avec (p=",P,", d=",D,", q=",Q,") en chaque temps"
 par(mfrow=c(1,2))
 # Analyse chaque temps ---------------------------------------------------
 par(mfrow=c(1,1))
-if(nom_variable=="S"){
-  write.csv(x =Obs_nouveau,file = paste0("residuals/","Surcote","_residuals.csv"))
-} else write.csv(x =Obs_nouveau,file = paste0("residuals/",nom_variable,"_residus.csv"))
+write.csv(x =Obs_nouveau,file ="residuals/S_residuals.csv")
 ```
 
 
