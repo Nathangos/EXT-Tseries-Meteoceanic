@@ -46,9 +46,6 @@ NB_dim_ACP<-3
 opt_Frech<-TRUE
 M<-2000
 n.dens<-2^(14)
-# Exts<-Simulation_ACP_TS_EXT(coeurs = coeurs,NB_dim_ACP = NB_scores,lien_donnees =l_donnees,nom_variable = nom_variable,p_U = P_U,
-#    p_L2 = PL2,n.dens=2^(14),opt_Frech=opt_Frech,
-#    M=N_simul,std_donnees=STD_donnees)
 ```
 
 ```{r}
@@ -59,12 +56,29 @@ dates_import<-read.csv("data_detrend_Winter/dates.csv")[,2]
 d_POIXCT<-as.POSIXct(dates_import, format="%d/%m/%Y")
 Nb_annees<-diff(range(lubridate::year(d_POIXCT)))
 NPY<-nrow(Donnes)/Nb_annees
-AN_GPD<-Analyse_seuil_GPD(donnees = Donnes,fonction_seuil = p_U,n.dens = n.dens,nom=nom_variable,
-                          dates_prises=dates_import,
-                          j_show=c(19))
+
+```
+
+##2) Extreme value diagnostic
+```{r}
+vect_k<-c(20:L)
+
+Graphics_estimators_gamma(series = L2,vect_k = vect_k,
+                             Title_graphic  = "Extreme of L2 before transformation")
+```
+
+As we see that the type of extreme is not convenient, we need to apply a marginal transformation. The latter uses as parameter a threshold $u_{t}$ defined at each time t.
+
+```{r}
+Time_analysed<-c(19)
+AN_GPD<-Analyse_seuil_GPD(donnees = Donnes,fonction_seuil = p_U,n.dens = n.dens,nom=nom_variable,dates_prises=dates_import,j_show=Time_analysed)
 Vecteur_DIM<-c(1:ncol(Donnes))
-Resultat_P<-as.data.frame(t(sapply(Vecteur_DIM,f_marginales_all_Pareto,data_to_tf = Donnes,p_u=p_U,
-                                   n.dens=n.dens)))
+```
+
+## 3) Applying the marginal transformation
+```{r}
+Resultat_P<-as.data.frame(t(sapply(Vecteur_DIM,f_marginales_all_Pareto,data_to_tf = Donnes,p_u=p_U,n.dens=n.dens)))
+
 K<-Resultat_P$kernel_dens
 PARETO<-Resultat_P$obs
 L_EVT<-list("gamma"=Resultat_P$gamma,
@@ -77,6 +91,7 @@ vecteur_pareto<-do.call(cbind.data.frame,PARETO)
 Analyse_Pareto_par_temps(donnees_Pareto = vecteur_pareto,nom = nom_variable,n.dens=n.dens)
 ```
 
+## 5) Approach the angle of the transformed time series
 ```{r}
 if(opt_Frech==TRUE){
   Unif<-1-(as.matrix(vecteur_pareto))^(-1)
@@ -110,6 +125,11 @@ esp_temps<-as.numeric(colMeans(Comp_angulaire))
 Analyse<-FactoMineR::PCA(X =Comp_angulaire,
                          scale.unit = std_donnees,
                          ncp = NB_dim_ACP)
+
+```
+
+We keep the first $J$ eigenvectors. Thus, we reduce the problem dimension as we only approach the law of the first two coordinates.
+```{r}
 val_lambda<-Analyse$eig[,1]
 vect_diff<-cumsum(c(0,val_lambda))/sum(val_lambda)
 vecteur_propvarexp<-1-vect_diff
@@ -126,6 +146,11 @@ plot(Coord1,Coord2)
 Coordonnees<-Analyse$ind$coord[,1:NB_dim_ACP]
 write.csv(file=paste0("residuals/ACP_results/Theta_coords_ACP_",nom_variable,".csv"),x=Coordonnees)
 dataUnif<-pobs(Coordonnees)
+```
+
+### Copula theory to approach the law of coordinates
+```{r}
+
 # Simulation_norme --------------------------------------------------------
 valeurs_unif<-runif(M)
 reals_P_std<-sapply(valeurs_unif,Generation_Pareto_std)
@@ -199,6 +224,11 @@ forme_pr_analyse<-f_copy
 coord_pr_analyse<-Matrice_coords_ALL[indicatrice_pos,]
 ```
 
+As we are able to approach the law of angle with the PCA, we now use the results in regular variations to simulate extreme time series with heavy-tail margins. 
+
+#(II) Simulation of extreme time series
+
+##(1) Simulate new angles
 ```{r}
 while (Ecart!=0){
   if(NB_dim_ACP==2){
@@ -268,10 +298,8 @@ par(mfrow=c(1,1))
 plot(density(norme_theta_simul),
      main=expression(paste0("Densité de la norme L2 de ",theta," simulé")))
 abline(v=1,col="red")
-write.csv(file=paste0("residuals/ACP_results/Theta_Vine_simul_",nom_variable,".csv"),
-          x=coord_pr_analyse)
-write.csv(file=paste0("residuals/ACP_results/evolution_eigen_value_",nom_variable,".csv"),
-          x=val_lambda)
+write.csv(file=paste0("residuals/ACP_results/Theta_Vine_simul_",nom_variable,".csv"),x=coord_pr_analyse)
+write.csv(file=paste0("residuals/ACP_results/evolution_eigen_value_",nom_variable,".csv"),x=val_lambda)
 ```
 
 ```{r}
@@ -303,6 +331,10 @@ if(opt_Frech==TRUE){
   Unif<-exp((-1)*Nouvelles_obs_P_acp^(-1))
   Nouvelles_obs_P_acp<-(1-Unif)^(-1)
 }
+
+```
+## 2) Applying the reverse marginal transformation
+```{r}
 NO_ACP<-lapply(INDICES_ACP,FUN = fnct_select_colonne,df=Nouvelles_obs_P_acp)
 
 # Reconversion dans la bonne échelle --------------------------------------
@@ -318,7 +350,7 @@ Comp_ANG_X<-t(t(Donnes[Inds_Exts,])%*%diag(L2_X^(-1)))
 PCA_X<-PCA(X =Comp_ANG_X,scale.unit =std_donnees,ncp =NB_dim_ACP,graph = FALSE)
 Coords_donnees_X<-PCA_X$ind$coord[,c(1:NB_dim_ACP)]
 
-L2_realisations<-apply(X = Variables_reconversion_ACP,FUN=calcul_norme_L2,MARGIN=1)
+L2_realisations<-apply(X =Variables_reconversion_ACP,FUN=calcul_norme_L2,MARGIN=1)
 Comp_ANG_Xsimul<-t(t(Variables_reconversion_ACP)%*%diag(L2_realisations^(-1)))
 if(std_donnees==TRUE){
   sdX_temps<-apply(X = Comp_ANG_X,MARGIN = 2,FUN = sd)
@@ -343,15 +375,6 @@ Transf_for_return<-as.data.frame(Angle_realisations)
 colnames(Transf_for_return)<-c(1:ncol(Transf_for_return))
 ```
 
-
-```{r}
-# return(list("Simulations"=Variables_reconversion_ACP,
-#             "obs_exts"=Data_ext,
-#             "Mat_HO"=Matrice_test_nulles,
-#             "Angle_Pareto"=Transf_for_return,
-#             "Angle_Pareto_realite"=Comp_angulaire))
-  
-```
 
 ## End of the code
 ```{r}

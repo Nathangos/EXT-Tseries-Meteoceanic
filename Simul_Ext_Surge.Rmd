@@ -100,7 +100,10 @@ colnames(Simulations_epsi)<-c(1:37)
 matplot(t(Simulations_epsi),type="l")
 matplot(t(Residus[Inds_extremes_L2,]),type="l")
 par(mfrow=c(1,1))
+```
 
+
+```{r}
 # Eventual relation between  epsilon_t et residus -------------------------------------------
 number_obs<-nrow(obs)-1
 df_resultat<-matrix(NA,nrow = 37,ncol = 4)
@@ -175,11 +178,21 @@ df_relation_dsbase<-cbind.data.frame(NL2_residus[2:length(NL2_residus)],
 
 colnames(df_relation_dsbase)<-c("epsi","L2_indu_pris")
 
+
+```
+
+
+```{r}
 inds_chosen<-which((df_relation_dsbase$epsi>0))
 df_subset<-df_relation_dsbase[inds_chosen,]
+## (3) Choice of the previous time series
+
 ech_fenetre<-sapply(X =NL2_epsi_simul,Sample_window,
          y=NL2_veille,x_window=NL2_residus[2:length(NL2_residus)],size_window=20)
 Echantillons_pris<-ech_fenetre
+```
+
+```{r}
 L<-nrow(obs)-1
 sub_obs<-NL2[1:L]
 sub_resid<-NL2_residus[2:nrow(obs)]
@@ -207,6 +220,11 @@ colnames(Y_Mat)<-c(1:ncol(Y_Mat))
 NL2_simulations<-apply(X =  Y_Mat,MARGIN = 1,FUN=calcul_norme_L2)
 print("simul vs veille--YO")
 test<-Inds_extremes_L2[2]-1
+```
+
+
+```{r}
+
 # Simulation evenement type Johanna ---------------------------------------
 Veille_Johann<-obs[Inds_extremes_L2[indice_Joh]-1,]
 date_veille_J<-Dates_prises[Inds_extremes_L2[indice_Joh]-1]
@@ -234,6 +252,9 @@ M_Prediction_normal_day<-t(sapply(c(1:nrow(Simulations_epsi)),
           Modele_ar_par_t = Mod_AR))
                return(vecteur)}))
 
+```
+
+```{r}
 # Relation veille_XO vs norme epsilon -------------------------------------
 NL2_epsi_simul<-apply(X = Simulations_epsi,MARGIN = 1,
                       FUN = calcul_norme_L2)
@@ -259,37 +280,46 @@ GG_rel_v2<-ggplot(data=df_residus_vs_veille_simul,aes(x=simul_epsi,
 print(GG_rel_v2)
 ```
 
+
 ```{r}
-# Comparaison des extremogrammes ------------------------------------------
-Matrice_couples<-list()
-L<-ncol(Y_Mat)
-z<-1
-vecteur_distances<-c()
-for(j in 1:L){
-  #condition imposée sur le deuxième temps.
-  valeurs_t_plus_h<-j:L
-  for (i in valeurs_t_plus_h){
-    Matrice_couples[[z]]<-c(i,j)
-    vecteur_distances<-c(vecteur_distances,abs(i-j))
-    z<-z+1
-  }
-}
-q_chosen<-0.90
-Tau1<-sapply(c(1:37),function(x,q,t){
-  return(as.numeric(quantile(x[,t],q)))},q=q_chosen,
-  x=Y_Mat)
-Tau2<-sapply(c(1:37),function(x,q,t){
-  return(as.numeric(quantile(x[,t],q)))},q=q_chosen,
-  x=Individus_extremes_base)
-Extremogram_simulations<-empirical_extremogram(Matrix_couples = Matrice_couples,inds_select = Y_Mat,Tau = Tau1)
-Extremogram_donnees<-empirical_extremogram(Matrix_couples = Matrice_couples,inds_select= Individus_extremes_base,Tau = Tau2)
-N_rep<-500
-B<-nrow(Individus_extremes_base)
-Resultat<-replicate(n =N_rep,expr = fnct_estim_extremo_resample(B = B,inds_ext  = Individus_extremes_base,Tau = Tau2,Matrix_couples = Matrice_couples,vector_distances=vecteur_distances))
+L_predJ<-list("simulations"=M_Prediction_obs_J,
+              "X0"=Veille_Johann, 
+              "date_X0"=date_veille_J, 
+              "X1"=Johann, 
+              "date_Johanna"=date_J_found)
+lJ<-list("simulations"=M_Prediction_consecutive_extreme,
+         "X0"=Johann, 
+         "date_J"=date_J_found,
+         "X1"=Next_day_extreme)
+lnormal<-list("simulations"=M_Prediction_normal_day,
+              "X0"=X_zero_nomal, 
+              "date_XO"=date_XOnormal,
+              "X1"=Next_day_normal)
+```
+
+```{r}
+resultat_Simul_Obs<-list("simulations_AR"=Y_Mat,"observations_exts_base"=Individus_extremes_base,"dates_evenements_extremes"=Dates_prises_extremes,
+   "liste_Johanna"=lJ,"liste_normal"=lnormal,
+   "X"=obs,"indices_X0"=Echantillons_pris, 
+   "indices_exts"=Inds_extremes_L2,"liste_Pred_Johanna"=L_predJ)
 ```
 
 ```{r}
 
+## Data-like time series or consecutive extremes
+Obs_ext<-resultat_Simul_Obs$observations_exts_base
+Simul<-resultat_Simul_Obs$simulations_AR
+Inds_drawn<-sample(c(1:nrow(Obs_ext)),size = nrow(Obs_ext)/3,
+       replace = FALSE)
+```
+
+
+#(III) Consistency of our simulations. 
+##(1) Quantiles value
+
+```{r}
+N_rep<-500
+B<-nrow(Individus_extremes_base)
 estimateur_95<-apply(Individus_extremes_base,MARGIN =2,function(x){return(as.numeric(quantile(x,0.95)))})
 estimateur_975<-apply(Individus_extremes_base,MARGIN =2,function(x){return(as.numeric(quantile(x,0.975)))})
 estimateur_05<-apply(Individus_extremes_base,MARGIN =2,function(x){return(as.numeric(quantile(x,0.05)))})
@@ -314,6 +344,10 @@ borne_moins05<-apply(Tendencies[3,,],MARGIN = 1,FUN = function(x){return(as.nume
 
 borne_plus50<-apply(Tendencies[4,,],MARGIN = 1,FUN = function(x){return(as.numeric(quantile(x,0.975)))})
 borne_moins50<-apply(Tendencies[4,,],MARGIN = 1,FUN = function(x){return(as.numeric(quantile(x,0.025)))})
+```
+
+
+```{r}
 df<-cbind.data.frame(c(estimateur_05,estimateur_50,estimateur_95,estimateur_975),
                      c(borne_moins05,borne_moins50,
                        borne_moins95,borne_moins975),
@@ -345,9 +379,100 @@ GG_percent<-ggplot(data=df,aes(x=Temps,y=estimateur,group=interaction(percent),c
 print(GG_percent)
  
 ```
+
+##(2) Functional decomposition of simulated and recorded time series
+
 ```{r}
- 
-  
+NL2_ext<-apply(X = Obs_ext,MARGIN = 1,FUN = calcul_norme_L2)
+NL2_simul<-apply(X = Simul,MARGIN = 1,FUN = calcul_norme_L2)
+```
+
+```{r}
+inds_non_nuls<-which(NL2_simul>0)
+Angle_inds<-t(t(Obs_ext)%*%diag(NL2_ext^(-1)))
+Angle_simul<-t(t(Simul[inds_non_nuls,])%*%diag(NL2_simul[inds_non_nuls]^(-1)))
+PCA_inds<-FactoMineR::PCA(X = Angle_inds,scale.unit = TRUE, 
+                          graph = FALSE)
+mu_angle<-colMeans(Angle_inds)
+percent_variance<-PCA_inds$eig[c(1:2),2]
+plot(c(100,PCA_inds$eig[,2]),type="o"
+     ,main=paste0("Evolution of the ratio of unexplained inertia for ",ifelse(nom_variable=="Surcote","S",nom_variable)))
+sd_angle<-apply(X =Angle_inds,MARGIN = 2,FUN = sd)
+```
+
+```{r}
+resultat<-scale(Angle_simul,center = mu_angle,
+                scale = sd_angle)
+coords_donnees<-PCA_inds$ind$coord[,c(1:2)]
+conversion_donnees<-resultat%*%PCA_inds$svd$V[,c(1:2)]
+ks.test(conversion_donnees[,1],coords_donnees[,1])
+wilcox.test(conversion_donnees[,1],coords_donnees[,1])
+
+ks.test(conversion_donnees[,2],coords_donnees[,2])
+wilcox.test(conversion_donnees[,2],coords_donnees[,2])
+```
+
+```{r}
+df_simul_forme<-cbind.data.frame(conversion_donnees)
+colnames(df_simul_forme)<-sapply(c(1:ncol(df_simul_forme)), 
+                               function(x){return(paste0("Score_",x))})
+
+df_data_forme<-as.data.frame(coords_donnees)
+colnames(df_data_forme)<-sapply(c(1:ncol(df_data_forme)), 
+                              function(x){return(paste0("Score_",x))})
+df_combo<-rbind.data.frame(df_data_forme,df_simul_forme)
+df_combo$Legend<-c(rep("data",nrow(df_data_forme)),
+                 rep("simulations",nrow(df_simul_forme)))
+GG1<-ggplot(data=df_combo,aes(x=Score_1,y=Score_2,colour=Legend,
+                              shape=Legend))+
+  geom_point(aes(size=Legend))+
+  scale_size_manual(values=c("simulations"=0.75,"data"=1.5))+
+  geom_xsidedensity(data=df_combo,aes(fill=Legend), alpha = 0.5)+
+  geom_ysidedensity(data=df_combo,aes(fill=Legend), alpha = 0.5)+
+  xlab(paste0("First dimension (",round(percent_variance[1],1),"% of the variance)"))+
+  ylab(paste0("Second dimension (",round(percent_variance[2],1),"% of the variance)"))+
+  scale_color_manual(values=cols_)+
+  scale_fill_manual(values=cols_)+
+  scale_shape_manual(values = c("simulations"=17,"data"=19))+
+  guides(fill="none")+
+  theme(axis.title=element_text(size=15),
+        legend.text=element_text(size=10))
+GG1
+
+```
+
+## (3) Correlation of extreme values
+```{r}
+# Comparaison des extremogrammes ------------------------------------------
+Matrice_couples<-list()
+L<-ncol(Y_Mat)
+z<-1
+vecteur_distances<-c()
+for(j in 1:L){
+  #condition imposée sur le deuxième temps.
+  valeurs_t_plus_h<-j:L
+  for (i in valeurs_t_plus_h){
+    Matrice_couples[[z]]<-c(i,j)
+    vecteur_distances<-c(vecteur_distances,abs(i-j))
+    z<-z+1
+  }
+}
+q_chosen<-0.90
+Tau1<-sapply(c(1:37),function(x,q,t){
+  return(as.numeric(quantile(x[,t],q)))},q=q_chosen,
+  x=Y_Mat)
+Tau2<-sapply(c(1:37),function(x,q,t){
+  return(as.numeric(quantile(x[,t],q)))},q=q_chosen,
+  x=Individus_extremes_base)
+Extremogram_simulations<-empirical_extremogram(Matrix_couples = Matrice_couples,inds_select = Y_Mat,Tau = Tau1)
+Extremogram_donnees<-empirical_extremogram(Matrix_couples = Matrice_couples,inds_select= Individus_extremes_base,Tau = Tau2)
+
+
+Resultat<-replicate(n =N_rep,expr = fnct_estim_extremo_resample(B = B,inds_ext  = Individus_extremes_base,Tau = Tau2,Matrix_couples = Matrice_couples,vector_distances=vecteur_distances))
+```
+
+
+```{r}
 fnct_quantile<-function(x,q){
   M<-apply(X = x,MARGIN = 2,FUN = function(X){return(as.numeric(quantile(X,q)))})
   return(M)
@@ -378,35 +503,61 @@ GG_extremo<-ggplot(travail_extremo,aes(x=Temps,y=val_donnees,col="data"))+
   ylab("value")
 
 print(GG_extremo)
-L_predJ<-list("simulations"=M_Prediction_obs_J,
-              "X0"=Veille_Johann, 
-              "date_X0"=date_veille_J, 
-              "X1"=Johann, 
-              "date_Johanna"=date_J_found)
-lJ<-list("simulations"=M_Prediction_consecutive_extreme,
-         "X0"=Johann, 
-         "date_J"=date_J_found,
-         "X1"=Next_day_extreme)
-lnormal<-list("simulations"=M_Prediction_normal_day,
-              "X0"=X_zero_nomal, 
-              "date_XO"=date_XOnormal,
-              "X1"=Next_day_normal)
+
+```
+
+## 3) EVA analysis
+```{r}
+if(nom_variable=="Hs"){
+  Y_graph_lim<-c(4,11)
+}
+if(nom_variable=="Surcote"){
+  Y_graph_lim<-c(0.13,1)
+}
+Indices_exts<-read.csv(paste0(fichier_idx_extremes))[,2]
+p_u<-rep(0.05,ncol(Simul))
+periods_years<-c(2,5,10,20,50,80,
+                 100,120,200,
+                 250,300,500,
+                 800)
+# Define the larger return period according to the number 
+# of years that we used, here 37
+NB_years<-37
+limite_sup<-3*NB_years
+periods_years<-periods_years[which(periods_years<limite_sup)]
+
 ```
 
 ```{r}
-resultat_Simul_Obs<-list("simulations_AR"=Y_Mat,"observations_exts_base"=Individus_extremes_base,"dates_evenements_extremes"=Dates_prises_extremes,
-   "liste_Johanna"=lJ,"liste_normal"=lnormal,
-   "X"=obs,"indices_X0"=Echantillons_pris, 
-   "indices_exts"=Inds_extremes_L2,"liste_Pred_Johanna"=L_predJ)
+for(t in c(13,19,25,31)){
+  lag<-t-19
+  comment<-ifelse(lag<0,paste0(abs(round(lag/6)),"h before"),
+                  ifelse(lag==0," at",paste0(round(lag/6),"h after")))
+  series_simul<-Simul[,t]
+  series_t<-resultat_Simul_Obs$X[,t]
+  seuil<-quantile(series_t,1-p_u[t])
+  
+  series_ext<-subset(series_t,series_t>seuil)
+  NB_years_total<-37
+  npy<-length(series_t)/NB_years_total
+  Nom_graph<-ifelse(nom_variable=="Surcote","S",
+                    nom_variable)
+  RL_ggplot_cond_ext(series = series_t,seuil = seuil,
+                     period_years = periods_years,
+                     NPY = round(npy),
+                     plus_simul = TRUE,
+                     series_simul = series_simul, 
+                     titre = paste0("Return level (ML) ",comment, " the tidal peak for ",Nom_graph), 
+                     nom_variable = nom_variable, 
+                     cols_ggplot = cols_, 
+                     unit_used = "m",
+                     ylim_opt = Y_graph_lim, 
+                     alpha=0.05,
+                     Individus_exts=Indices_exts)
+}
 ```
 
-## Data-like time series or consecutive extremes
-```{r}
-Obs_ext<-resultat_Simul_Obs$observations_exts_base
-Simul<-resultat_Simul_Obs$simulations_AR
-Inds_drawn<-sample(c(1:nrow(Obs_ext)),size = nrow(Obs_ext)/3,
-       replace = FALSE)
-```
+
 
 ```{r}
 norm<-as.numeric(resultat_Simul_Obs$liste_normal$X0)
@@ -479,72 +630,11 @@ gridExtra::grid.arrange(GGJoh,GG_normal,ncol=2,
 ```
 
 
-## 1) PCA Analysis
-
-```{r}
-NL2_ext<-apply(X = Obs_ext,MARGIN = 1,FUN = calcul_norme_L2)
-NL2_simul<-apply(X = Simul,MARGIN = 1,FUN = calcul_norme_L2)
-```
-
-
-```{r}
-inds_non_nuls<-which(NL2_simul>0)
-Angle_inds<-t(t(Obs_ext)%*%diag(NL2_ext^(-1)))
-Angle_simul<-t(t(Simul[inds_non_nuls,])%*%diag(NL2_simul[inds_non_nuls]^(-1)))
-PCA_inds<-FactoMineR::PCA(X = Angle_inds,scale.unit = TRUE, 
-                          graph = FALSE)
-mu_angle<-colMeans(Angle_inds)
-percent_variance<-PCA_inds$eig[c(1:2),2]
-plot(c(100,PCA_inds$eig[,2]),type="o"
-     ,main=paste0("Evolution of the ratio of unexplained inertia for ",ifelse(nom_variable=="Surcote","S",nom_variable)))
-sd_angle<-apply(X =Angle_inds,MARGIN = 2,FUN = sd)
-```
-
-```{r}
-resultat<-scale(Angle_simul,center = mu_angle,
-                scale = sd_angle)
-coords_donnees<-PCA_inds$ind$coord[,c(1:2)]
-conversion_donnees<-resultat%*%PCA_inds$svd$V[,c(1:2)]
-ks.test(conversion_donnees[,1],coords_donnees[,1])
-wilcox.test(conversion_donnees[,1],coords_donnees[,1])
-
-ks.test(conversion_donnees[,2],coords_donnees[,2])
-wilcox.test(conversion_donnees[,2],coords_donnees[,2])
-```
-
-```{r}
-df_simul_forme<-cbind.data.frame(conversion_donnees)
-colnames(df_simul_forme)<-sapply(c(1:ncol(df_simul_forme)), 
-                               function(x){return(paste0("Score_",x))})
-
-df_data_forme<-as.data.frame(coords_donnees)
-colnames(df_data_forme)<-sapply(c(1:ncol(df_data_forme)), 
-                              function(x){return(paste0("Score_",x))})
-df_combo<-rbind.data.frame(df_data_forme,df_simul_forme)
-df_combo$Legend<-c(rep("data",nrow(df_data_forme)),
-                 rep("simulations",nrow(df_simul_forme)))
-GG1<-ggplot(data=df_combo,aes(x=Score_1,y=Score_2,colour=Legend,
-                              shape=Legend))+
-  geom_point(aes(size=Legend))+
-  scale_size_manual(values=c("simulations"=0.75,"data"=1.5))+
-  geom_xsidedensity(data=df_combo,aes(fill=Legend), alpha = 0.5)+
-  geom_ysidedensity(data=df_combo,aes(fill=Legend), alpha = 0.5)+
-  xlab(paste0("First dimension (",round(percent_variance[1],1),"% of the variance)"))+
-  ylab(paste0("Second dimension (",round(percent_variance[2],1),"% of the variance)"))+
-  scale_color_manual(values=cols_)+
-  scale_fill_manual(values=cols_)+
-  scale_shape_manual(values = c("simulations"=17,"data"=19))+
-  guides(fill="none")+
-  theme(axis.title=element_text(size=15),
-        legend.text=element_text(size=10))
-GG1
-
-```
 ##3) Classification two-samples test
 ```{r}
 source("fonctions/fonctions_perfs_ML.R")
 racine_ML<-c("results_ML/")
-H_Params<-c("radial","logit",50)
+H_Params<-c("radial","logit",500)
 NB_times<-100
 ALPHA_PROP<-0.10
 K<-4
@@ -580,55 +670,7 @@ resultat[3,]<-Lperfs_A_f$Accuracy$qu_accuracy
 resultat
 ```
 
-## 3) EVA analysis
 ```{r}
-if(nom_variable=="Hs"){
-  Y_graph_lim<-c(4,11)
-}
-if(nom_variable=="Surcote"){
-  Y_graph_lim<-c(0.13,1)
-}
-Indices_exts<-read.csv(paste0(fichier_idx_extremes))[,2]
-p_u<-rep(0.05,ncol(Simul))
-periods_years<-c(2,5,10,20,50,80,
-                 100,120,200,
-                 250,300,500,
-                 800)
-# Define the larger return period according to the number 
-# of years that we used, here 37
-NB_years<-37
-limite_sup<-3*NB_years
-periods_years<-periods_years[which(periods_years<limite_sup)]
-
+## End of the code
 ```
-
-```{r}
-for(t in c(13,19,25,31)){
-  lag<-t-19
-  comment<-ifelse(lag<0,paste0(abs(round(lag/6)),"h before"),
-                  ifelse(lag==0," at",paste0(round(lag/6),"h after")))
-  series_simul<-Simul[,t]
-  series_t<-resultat_Simul_Obs$X[,t]
-  seuil<-quantile(series_t,1-p_u[t])
-  
-  series_ext<-subset(series_t,series_t>seuil)
-  NB_years_total<-37
-  npy<-length(series_t)/NB_years_total
-  Nom_graph<-ifelse(nom_variable=="Surcote","S",
-                    nom_variable)
-  RL_ggplot_cond_ext(series = series_t,seuil = seuil,
-                     period_years = periods_years,
-                     NPY = round(npy),
-                     plus_simul = TRUE,
-                     series_simul = series_simul, 
-                     titre = paste0("Return level (ML) ",comment, " the tidal peak for ",Nom_graph), 
-                     nom_variable = nom_variable, 
-                     cols_ggplot = cols_, 
-                     unit_used = "m",
-                     ylim_opt = Y_graph_lim, 
-                     alpha=0.05,
-                     Individus_exts=Indices_exts)
-}
-```
-
 
