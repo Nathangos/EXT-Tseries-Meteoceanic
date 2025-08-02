@@ -9,7 +9,6 @@ output:
 rm(list=ls())
 set.seed(133)
 par(mfrow=c(1,1))
-print("import functions")
 source("fonctions/fonctions.R")
 require(reshape2)
 require(ggplot2)
