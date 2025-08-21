@@ -1781,17 +1781,17 @@ Sample_window<-function(x_simul,x_window,y,size_window){
 #' @param obs_eve : vector(float). The values obtained at each time step for the 
 #' previous observation X(M-1).  
 #' @param epsilon_t_plus1 : vector(float). Simulated residual.
-#' @param Modele_ar_par_t : df. Summary of the arima model at each time t. 
+#' @param model_ar_per_t : df. Summary of the arima model at each time t. 
 #'
 #' @return vector(float). Simulated extreme time series X(M). 
 #' @export
 #'
 #' @examples
-Function_AR_p<-function(j,obs_eve,epsilon_t_plus1,Modele_ar_par_t){
+Function_AR_p<-function(j,obs_eve,epsilon_t_plus1,model_ar_per_t){
   
-  End<-ncol(Modele_ar_par_t)-1
-  vect_regression<-Modele_ar_par_t[j,c(1:End)]
-  Constant<-c(unlist(Modele_ar_par_t$Intercept)[j]%*%(1-sum(unlist(vect_regression))))
+  End<-ncol(model_ar_per_t)-1
+  vect_regression<-model_ar_per_t[j,c(1:End)]
+  Constant<-c(unlist(model_ar_per_t$Intercept)[j]%*%(1-sum(unlist(vect_regression))))
   X_projection<-as.matrix(obs_eve[j])%*%unlist(vect_regression)+Constant
   return(X_projection+epsilon_t_plus1[j])
 }
