@@ -60,8 +60,9 @@ NPY<-nrow(Data)/Nb_years
 
 ##2) Extreme value diagnostic
 ```{r}
+L<-200
 vect_k<-c(20:L)
-
+L2<-apply(X = Data,MARGIN = 1,FUN = calcul_norm_L2)
 Graphics_estimators_gamma(series = L2,vect_k = vect_k,
                              Title_graphic  = "Extreme of L2 before transformation")
 ```
@@ -70,7 +71,7 @@ As we see that the type of extreme is not convenient, we need to apply a margina
 
 ```{r}
 Time_analysed<-c(19)
-AN_GPD<-Analyse_threshd_GPD(data = Data,fonction_threshd = p_U,n.dens = n.dens,nom=name_variable,dates_prises=dates_import,j_show=Time_analysed)
+AN_GPD<-Analyse_threshd_GPD(data = Data,fonction_threshd = p_U,n.dens = n.dens,name =name_variable,dates_taken=dates_import,j_show=Time_analysed)
 vector_DIM<-c(1:ncol(Data))
 ```
 
@@ -87,7 +88,7 @@ L_EVT<-list("gamma"=result_P$gamma,
 vector_pareto<-do.call(cbind.data.frame,PARETO)
 
 # Hypothèse Pareto pour la transformation ---------------------------------
-Analyse_Pareto_par_time(data_Pareto = vector_pareto,nom = name_variable,n.dens=n.dens)
+Analyse_Pareto_per_time(data_Pareto = vector_pareto,name = name_variable,n.dens=n.dens)
 ```
 
 ## 5) Approach the angle of the transShaped time series
@@ -99,8 +100,7 @@ if(opt_Frech==TRUE){
     serie_frech_t<-vector_pareto[,t]
   }
 }
-
-vector_norm_L2<-apply(X= vector_pareto,MARGIN = 1,FUN =calcul_norme_L2)
+vector_norm_L2<-apply(X= vector_pareto,MARGIN = 1,FUN =calcul_norm_L2)
 
 rownames(vector_pareto)<-1:nrow(vector_pareto)
 colnames(vector_pareto)<-c(1:ncol(vector_pareto))
@@ -150,7 +150,7 @@ dataUnif<-pobs(Coordinates)
 ### Copula theory to approach the law of coordinates
 ```{r}
 
-# Simulation_norme --------------------------------------------------------
+# Simulation_norm --------------------------------------------------------
 values_unif<-runif(M)
 reals_P_std<-sapply(values_unif,Generation_Pareto_std)
 COEFF<-reals_P_std*v_threshd
@@ -169,7 +169,7 @@ if(NB_dim_ACP==2){
   write.csv(elt,file = paste0("residuals/",name_variable,"_coords_UV_copules.csv"),
            row.names = FALSE)
 }else{
-matrix_C<-function_Structure_matrix(NB_dim = NB_dim_ACP)
+matrix_C<-function_Structure_Matrix(NB_dim = NB_dim_ACP)
 Family_chosen<-VineCopula::RVineCopSelect(dataUnif[,c(1:NB_dim_ACP)],
                                             Matrix = matrix_C)
 Code_utilisee<-summary(Family_chosen)$family
@@ -209,7 +209,7 @@ if(std_data==TRUE){
 }else{
   Shape_ACP<-fonction_reconstitution_trajectoire(vector_coords =   matrix_coords_ALL,Base_fonctions_p = F_eigen,NB_dim = NB_dim_ACP,mu_t = esp_time)
 }
-L2_proche_1<-apply(X =Shape_ACP,MARGIN = 1,FUN = calcul_norme_L2)
+L2_proche_1<-apply(X =Shape_ACP,MARGIN = 1,FUN = calcul_norm_L2)
 Shape_ACP<-t(t(Shape_ACP)%*%diag(L2_proche_1^(-1)))
 
 New_obs_P_acp<-t(t(Shape_ACP)%*%diag(COEFF))
@@ -245,10 +245,9 @@ while (Gap!=0){
       matrix_coords_Gap[,l]<-quantile(Coordinates[,l],probs=Real_copules[l])
     }
   }
-  Shape_Gap<-function_reconstitution_trajectory_std(Vector_coords = matrix_coords_Gap,Base_functions_p  = F_eigen,NB_dim = NB_dim_ACP,
-                  mu_t =esp_time,sd_t = sd_time)
+  Shape_Gap<-function_reconstitution_trajectory_std(Vector_coords = matrix_coords_Gap,Base_functions_p  = F_eigen,NB_dim = NB_dim_ACP,mu_t =esp_time,sd_t = sd_time)
   
-  L2_Gap<-apply(X =Shape_Gap,MARGIN = 1,FUN = calcul_norme_L2)
+  L2_Gap<-apply(X =Shape_Gap,MARGIN = 1,FUN = calcul_norm_L2)
   Shape_Gap<-t(t(Shape_Gap)%*%diag(L2_Gap^(-1)))
   
   values_unif_e<-runif(Gap)
@@ -268,13 +267,16 @@ while (Gap!=0){
   }
   
 }
-L2_realisations<-apply(X = New_obs_P_acp,MARGIN = 1,FUN = calcul_norme_L2)
+L2_realisations<-apply(X = New_obs_P_acp,MARGIN = 1,FUN = calcul_norm_L2)
 indexes_ACP<-1:nrow(New_obs_P_acp)
 Angle_realisations<-t(t(New_obs_P_acp)%*%diag(L2_realisations^(-1)))
 write.csv(x = New_obs_P_acp,
           file=paste0("residuals/Pareto/",name_variable,"_simul_Pareto.csv"))
 
-# Comparaison_Coordinates -------------------------------------------------
+```
+
+```{r}
+# Comparing_Coordinates -------------------------------------------------
 write.csv(x=vector_pareto,file=paste0("residuals/Pareto/",name_variable,"_obs_ech_Pareto.csv"))
 Min_y<-min(c(apply(Shape_for_analyse,MARGIN = 2,FUN = min),
              apply(Comp_angular,MARGIN = 2,FUN = min)))
@@ -290,15 +292,15 @@ nom_graph<-ifelse(name_variable=="Surcote","S",
                   name_variable)
 mtext(xlab_chosen, side = 3, line = -22, outer = TRUE,
       cex=1.5)
-# travail norme -----------------------------------------------------------
-norme_theta_simul<-apply(X = Shape_for_analyse,MARGIN = 1,
-                         FUN = calcul_norme_L2)
-
+# Work on the norm -----------------------------------------------------------
+norm_theta_simul<-apply(X = Shape_for_analyse,MARGIN = 1,
+                         FUN = calcul_norm_L2)
 ```
+
 
 ```{r}
 par(mfrow=c(1,1))
-plot(density(norme_theta_simul),
+plot(density(norm_theta_simul),
      main=expression(paste0("Density of the L2 norm of ",theta," simulated")))
 abline(v=1,col="red")
 write.csv(file=paste0("residuals/ACP_results/Theta_Vine_simul_",name_variable,".csv"),x=coord_for_analyse)
@@ -348,12 +350,12 @@ Variables_reconversion_ACP<-do.call(rbind.data.frame,
 colnames(Variables_reconversion_ACP)<-1:ncol(Variables_reconversion_ACP)
 # 
 # Coordinates initial scale--------------------------------------------
-L2_X<-apply(X = Data[Inds_Exts,],FUN=calcul_norme_L2,MARGIN=1)
+L2_X<-apply(X = Data[Inds_Exts,],FUN=calcul_norm_L2,MARGIN=1)
 Comp_ANG_X<-t(t(Data[Inds_Exts,])%*%diag(L2_X^(-1)))
 PCA_X<-PCA(X =Comp_ANG_X,scale.unit =std_data,ncp =NB_dim_ACP,graph = FALSE)
 Coords_data_X<-PCA_X$ind$coord[,c(1:NB_dim_ACP)]
 
-L2_realisations<-apply(X=Variables_reconversion_ACP,FUN=calcul_norme_L2,MARGIN=1)
+L2_realisations<-apply(X=Variables_reconversion_ACP,FUN=calcul_norm_L2,MARGIN=1)
 Comp_ANG_Xsimul<-t(t(Variables_reconversion_ACP)%*%diag(L2_realisations^(-1)))
 if(std_data==TRUE){
   sdX_time<-apply(X = Comp_ANG_X,MARGIN = 2,FUN = sd)
@@ -367,6 +369,10 @@ for(z in c(1:NB_dim_ACP)){
   matrix_test_nulles[,Z]<-c(KS_j,MW_j)
   Z<-Z+1
 }
+
+```
+
+```{r}
 # Export of resid simulations --------------------------------------------
 Std<-ifelse(std_data,"with_std","without_std")
 write.csv(file=paste0("residuals/Simulations_",name_variable,"_",Std,".csv"),x = Variables_reconversion_ACP)
@@ -377,7 +383,6 @@ write.csv(Inds_Exts_mat,file = paste0("residuals/inds_extremes_data_",name_varia
 Transf_for_return<-as.data.frame(Angle_realisations)
 colnames(Transf_for_return)<-c(1:ncol(Transf_for_return))
 ```
-
 
 ## End of the code
 ```{r}

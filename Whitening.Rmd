@@ -28,85 +28,69 @@ require(ggside)
 ```{r}
 source("fonctions/fonctions.R")
 F_names<-ls()
-nb_coeurs<-detectCores()-4
-coeurs<-makeCluster(nb_coeurs)
-clusterExport(coeurs,varlist=F_names)
+nb_CPU_hearts<-detectCores()-4
+CPU_hearts<-makeCluster(nb_CPU_hearts)
+clusterExport(CPU_hearts,varlist=F_names)
 ```
 
 
 ```{r}
-P<-1
-nom_variable<-"Surcote"
+name_variable<-"Surcote"
+name_recherche<-paste0("data_detrend_Winter/",name_variable,"_detrend.csv")
+Data<-read.csv(name_recherche)[,c(2:38)]
+colnames(Data)<-c(1:37)
+if(name_variable=="Surcote"){
+  name_variable<-"S"
+}
+```
+
+```{r}
+# ACF result ------------------------------------------------------------
+B<-melt(t(Data))
+colnames(B)<-c("Time","Individual","Mesure")
+B$Time<-as.factor(B$Time)
+title<-paste0("Density at each time for ",name_variable, " en hiver")
+PV<-ggplot2::ggplot(data = B,aes(Time,Mesure,fill=Time))+
+  geom_violin()+
+  geom_boxplot(width=0.2)+
+  guides(fill = "none")+
+  ggtitle(title)+
+  ylab("Density")
+
+colnames(Data)<-c(1:length(colnames(Data)))
+vector_normL2<-parApply(cl=CPU_hearts,X = Data,MARGIN = 1,FUN = calcul_norm_L2)
+
+par(mfrow=c(1,2))
+df_time_variable<-cbind.data.frame(1:length(vector_normL2), vector_normL2)
+colnames(df_time_variable)<-c("time","Data")
+taken_dates<-read.csv(file="data_detrend_Winter/dates.csv")[,2]
+# Convert in number of days
+df_time_variable$time<-taken_dates
+df_time_variable$time<-lubridate::decimal_date(as.POSIXct(df_time_variable$time, format="%d/%m/%Y"))
+pas_unit<-(df_time_variable$time[2]-df_time_variable$time[1])
+
+```
+
+```{r}
+# Handle the temporal dependence  with a AR(1) at each time --------------------------------------
 Q<-0
 D<-0
 p<-0
 q<-0
-```
-
-```{r}
-nom_recherche<-paste0("data_detrend_Winter/",nom_variable,"_detrend.csv")
-obs<-read.csv(nom_recherche)[,c(2:38)]
-colnames(obs)<-c(1:37)
-if(nom_variable=="Surcote"){
-  nom_variable<-"S"
-}
-# ACF resultat ------------------------------------------------------------
-B<-melt(t(obs))
-colnames(B)<-c("Temps","Individu","Mesure")
-B$Temps<-as.factor(B$Temps)
-TITRE<-paste0("Densité avant diff en chaque temps pour ",nom_variable, " en hiver")
-PV<-ggplot2::ggplot(data = B,aes(Temps,Mesure,fill=Temps))+
-  geom_violin()+
-  geom_boxplot(width=0.2)+
-  guides(fill = "none")+
-  ggtitle(TITRE)+
-  ylab("Densité")
-
-colnames(obs)<-c(1:length(colnames(obs)))
-VECTEUR_normeL2<-parApply(cl=coeurs,X = obs,MARGIN = 1,FUN = calcul_norme_L2)
-
-
-# Choix seuil avant transformation ----------------------------------------
-Q1_brut<-quantile(VECTEUR_normeL2,0.1)
-Q2_brut<-quantile(VECTEUR_normeL2,0.95)
-qu_threshr_brut<- quantile(VECTEUR_normeL2, probs = seq(0.1, 0.95,length.out=10))
-#Resultat_seuil_brut<-threshr::ithresh(data =VECTEUR_normeL2,u_vec =qu_threshr_brut)
-
-par(mfrow=c(1,2))
-df_time_variable<-cbind.data.frame(1:length(VECTEUR_normeL2), VECTEUR_normeL2)
-colnames(df_time_variable)<-c("time","obs")
-dates_prises<-read.csv(file="data_detrend_Winter/dates.csv")[,2]
-# Convertir en nombre de jours-3 jours =une tempête.
-df_time_variable$time<-dates_prises
-df_time_variable$time<-lubridate::decimal_date(as.POSIXct(df_time_variable$time, format="%d/%m/%Y"))
-pas_unit<-(df_time_variable$time[2]-df_time_variable$time[1])
-
-# Dates correspondantes ---------------------------------------------------
-
-par(mfrow=c(3,4))
-liste_q_chosen<-rep(NA,37)
-liste_pu_chosen<-rep(NA,37)
-# Travail par temps pour les exts -----------------------------------------
-par(mfrow=c(1,1))
-
-# # Résultat avec arima -------------------------------------------
-# ######
-## Juxtaposer les différentes séries.
-
-# Test avec un AR(1) en chaque temps --------------------------------------
-Obs_nouveau<-matrix(NA,nrow = nrow(obs),ncol = ncol(obs))
-Df_reg_ar<-matrix(NA,nrow=ncol(obs),ncol=P+1)
-for(t in c(1:ncol(obs))){
-  series<-obs[,t]
-  modele<-arima(series,order=c(P,D,Q))
-  Df_reg_ar[t,]<-unlist(modele$coef)
-  residus<-modele$residuals
-  Obs_nouveau[,t]<-residus
+P<-1
+Data_new<-matrix(NA,nrow = nrow(Data),ncol = ncol(Data))
+Df_reg_ar<-matrix(NA,nrow=ncol(Data),ncol=P+1)
+for(t in c(1:ncol(Data))){
+  series<-Data[,t]
+  model<-arima(series,order=c(P,D,Q))
+  Df_reg_ar[t,]<-unlist(model$coef)
+  residuals<-model$residuals
+  Data_new[,t]<-residuals
 
 }
 par(mfrow=c(1,2))
 for(ell in c(1)){
-  series<-obs[,ell]
+  series<-Data[,ell]
   ACF_alt<-acf(x=series,lag=400,plot=FALSE)
   plot(ACF_alt,main="",cex.lab=1.5,ylim=c(-1,1))
   PACF_alt<-pacf(x=series,lag=400,plot=FALSE)
@@ -114,101 +98,111 @@ for(ell in c(1)){
 }
 ```
 
+
 ```{r}
 par(mfrow=c(1,1))
 constante<-(1-Df_reg_ar[1,1])*Df_reg_ar[1,2]
-print(c(obs[1,1],obs[2,1],Obs_nouveau[2,1]))
+print(c(Data[1,1],Data[2,1],Data_new[2,1]))
 
 Df_reg_ar<-as.data.frame(Df_reg_ar)
-Nom_cols_modele_lin<-c()
+name_cols_model_lin<-c()
 for(j in c(1:P)){
-  Nom_cols_modele_lin<-c(Nom_cols_modele_lin,paste0("coeff_ar",j))
+  name_cols_model_lin<-c(name_cols_model_lin,paste0("coeff_ar",j))
 }
-colnames(Df_reg_ar)<-c(Nom_cols_modele_lin,"Intercept")
-nom_fichier<-paste0("residuals/",nom_variable,"_Reg_AR",P,".csv")
-write.csv(file = nom_fichier,x=Df_reg_ar)
+colnames(Df_reg_ar)<-c(name_cols_model_lin,"Intercept")
+name_file<-paste0("residuals/",name_variable,"_Reg_AR",P,".csv")
+write.csv(file = name_file,x=Df_reg_ar)
+```
 
+```{r}
 graph_ar1<-melt(t(Df_reg_ar))
-colnames(graph_ar1)<-c("variable","temps","valeur")
-GG_graph_AR1<-ggplot(data=graph_ar1,aes(x=temps,y=valeur,col=variable))+
+colnames(graph_ar1)<-c("variable","Time","value")
+GG_graph_AR1<-ggplot(data=graph_ar1,aes(x=Time,y=value,col=variable))+
   facet_wrap(~variable,scales = "free_y")+
   geom_line()+
   geom_point()+
-  ggtitle(paste0("Evolution du modèle AR(",P,") pour ",nom_variable))+
-  labs(col="Légende")+
-  labs(caption=paste0("n=",nrow(Obs_nouveau)))
-# labs pour changer la légende. 
+  ggtitle(paste0("Evolution of the AR(",P,") for ",name_variable))+
+  labs(col="Legend")+
+  labs(caption=paste0("n=",nrow(Data_new)))
 print(GG_graph_AR1)
 ```
 
 ```{r}
-# Analyse corrélation -----------------------------------------------------
-series_pos_AR<-c(t(Obs_nouveau))
+#Correlation analysis -----------------------------------------------------
+series_pos_AR<-c(t(Data_new))
 ACF_post_ar<-acf(series_pos_AR,lag=1000,plot=FALSE)
 PACF_post_ar<-pacf(series_pos_AR,lag=1000,plot=FALSE)
 
-series_complete<-as.vector(t(obs))
-titre<-paste0("Resultat obtenu avec (p=",P,", d=",D,", q=",Q,") en chaque temps")
+series_complete<-as.vector(t(Data))
+title<-paste0("result obtained with (p=",P,", d=",D,", q=",Q,") at each Time")
 
 par(mfrow=c(1,2))
-# Analyse chaque temps ---------------------------------------------------
+# Analyse at each time ---------------------------------------------------
 par(mfrow=c(1,1))
-write.csv(x =Obs_nouveau,file ="residuals/S_residuals.csv")
+write.csv(x =Data_new,file ="residuals/S_residuals.csv")
 ```
-
 
 ```{r}
 par(mfrow=c(1,2))
 
-# ### Normes
-NL2_deseason<-apply(Obs_nouveau,MARGIN = 1,FUN = calcul_norme_L2)
+# ### Norms
+NL2_deseason<-apply(Data_new,MARGIN = 1,FUN = calcul_norm_L2)
 
 plot(acf(NL2_deseason,lag=1000,plot=FALSE),main="ACF",ylim=c(-1,1))
 plot(pacf(NL2_deseason,lag=1000,plot=FALSE),main="PACF",ylim=c(-1,1))
-mtext(paste0("n=",nrow(Obs_nouveau)), side=1, line=3, adj = 1, cex=0.8)
-mtext(paste0("Corrélations pour la norme L2 de ",nom_variable," avec un AR(",P,")"), 
+mtext(paste0("n=",nrow(Data_new)), side=1, line=3, adj = 1, cex=0.8)
+mtext(paste0("Correlations for the L2 norm of ",name_variable," with a AR(",P,")"), 
       line=-1,outer = TRUE,col = "red")
+```
 
-# dépendance asymptotique -------------------------------------------------
-for( lag_norme in c(1:10)){
+
+```{r}
+# Asymptotic dependence -------------------------------------------------
+for( lag_norm in c(1:10)){
   par(mfrow=c(1,2))
-  fin<-length(NL2_deseason)-lag_norme
+  fin<-length(NL2_deseason)-lag_norm
   serie_1<-NL2_deseason[1:fin]
-  series_lag<-NL2_deseason[lag_norme+1:length(NL2_deseason)]
-  resultat_chi<-POT::chimeas(data = cbind(serie_1,series_lag),
+  series_lag<-NL2_deseason[lag_norm+1:length(NL2_deseason)]
+  result_chi<-POT::chimeas(data = cbind(serie_1,series_lag),
                              boot = FALSE,ask=FALSE,which=1)
   abline(h=0,col="red")
   
-  resultat_chi<-POT::chimeas(data = cbind(serie_1,series_lag),
+  result_chi<-POT::chimeas(data = cbind(serie_1,series_lag),
                              boot = FALSE,ask=FALSE,which=2)
   abline(h=0,col="red")
   methode<-ifelse(test = FALSE,yes = "boot", "delta")
-  title(paste0("Coefficients pour un décalage de ",lag_norme, " pour la norme de ", nom_variable," via ",methode),
+  title(paste0("Coefficients for a lag of ",lag_norm, "for the norm of ", name_variable),
         outer = TRUE,line = -2)
   par(mfrow=c(1,1))
 }
 
-plot(acf(VECTEUR_normeL2,lag=1000,plot=FALSE),main=paste0("ACF NL2 orig (",nom_variable,")"),ylim=c(-1,1))
-plot(acf(NL2_deseason,lag=1000,plot=FALSE),main=paste0("ACF NL2 résidus de (",nom_variable,")"),ylim=c(-1,1))
-mtext(paste0("n=",nrow(Obs_nouveau)), side=1, line=3, adj = 1, cex=0.8)
-mtext(titre, line=-1,outer = TRUE,col = "red")
+```
+
+```{r}
+plot(acf(vector_normL2,lag=1000,plot=FALSE),main=paste0("ACF NL2 orig (",name_variable,")"),ylim=c(-1,1))
+plot(acf(NL2_deseason,lag=1000,plot=FALSE),main=paste0("ACF NL2 residuals of (",name_variable,")"),ylim=c(-1,1))
+mtext(paste0("n=",nrow(Data_new)), side=1, line=3, adj = 1, cex=0.8)
+mtext(title, line=-1,outer = TRUE,col = "red")
+```
+
+
+```{r}
+plot(pacf(vector_normL2,lag=1000,plot=FALSE),main=paste0("PACF NL2 orig (",name_variable,")"),ylim=c(-1,1))
+plot(pacf(NL2_deseason,lag=1000,plot=FALSE),main=paste0("PACF NL2 residuals of (",name_variable,")"),ylim=c(-1,1))
+mtext(paste0("n=",nrow(Data_new)), side=1, line=3, adj = 1, cex=0.8)
+mtext(title, line=-1,outer = TRUE,col = "red")
 
 ```
 
 ```{r}
-plot(pacf(VECTEUR_normeL2,lag=1000,plot=FALSE),main=paste0("PACF NL2 orig (",nom_variable,")"),ylim=c(-1,1))
-plot(pacf(NL2_deseason,lag=1000,plot=FALSE),main=paste0("PACF NL2 résidus de (",nom_variable,")"),ylim=c(-1,1))
-mtext(paste0("n=",nrow(Obs_nouveau)), side=1, line=3, adj = 1, cex=0.8)
-mtext(titre, line=-1,outer = TRUE,col = "red")
-
-plot(acf(NL2_deseason,lag=1000,plot=FALSE),main=paste0("ACF NL2 résidus de (",nom_variable,")"))
-plot(pacf(NL2_deseason,lag=1000,plot=FALSE),main=paste0("PACF NL2 résidus de (",nom_variable,")"))
-mtext(paste0("n=",nrow(Obs_nouveau)), side=1, line=3, adj = 1, cex=0.8)
-mtext(titre, line=-1,outer = TRUE,col = "red")
+plot(acf(NL2_deseason,lag=1000,plot=FALSE),main=paste0("ACF NL2 residuals of (",name_variable,")"))
+plot(pacf(NL2_deseason,lag=1000,plot=FALSE),main=paste0("PACF NL2 residuals of (",name_variable,")"))
+mtext(paste0("n=",nrow(Data_new)), side=1, line=3, adj = 1, cex=0.8)
+mtext(title, line=-1,outer = TRUE,col = "red")
 ```
 
 ## End of the code.
 ```{r}
-stopCluster(coeurs)
+stopCluster(CPU_hearts)
 ```
 

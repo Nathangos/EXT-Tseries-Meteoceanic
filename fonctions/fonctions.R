@@ -126,7 +126,7 @@ test_Uniforme<-function(collection_dimension){
 }
 ##### Calculer la norme de chaque série temporelle. #####
 
-#' calcul_norme_L2
+#' calcul_norm_L2
 #'
 #' @param series: vector(series). Time series. 
 #'
@@ -134,7 +134,7 @@ test_Uniforme<-function(collection_dimension){
 #' @export
 #'
 #' @examples
-calcul_norme_L2<-function(series){
+calcul_norm_L2<-function(series){
   L<-length(series)
   pas<-(1/(L-1))
 
@@ -166,7 +166,7 @@ fdiff<-function(series){
 fonction_calcul_norme<-function(df,nom_colonne){
   
   series<-df[,nom_colonne]
-  resultat_calcul_norme<-calcul_norme_L2(series)
+  resultat_calcul_norme<-calcul_norm_L2(series)
   return(resultat_calcul_norme)
 }
 
@@ -194,7 +194,7 @@ f_nom_variable<-function(file,nom_var){
 #' @examples
 fonction_renvoi_angle<-function(donnees){
   
-  norme<-calcul_norme_L2(donnees)
+  norme<-calcul_norm_L2(donnees)
   if (norme>0){
     angle<-donnees/norme
     return(angle)
@@ -465,7 +465,7 @@ f_marginales_uniforme<-function(variable,p_u,n.dens){
 #' @examples
 fonc_norm_inv<-function(variable){
   vecteur_variable_transformee<-as.numeric(-(variable)^(-1))
-  valeur_norme<-calcul_norme_L2(vecteur_variable_transformee)
+  valeur_norme<-calcul_norm_L2(vecteur_variable_transformee)
   valeur_norme_geo<-(-1/valeur_norme)
   return(valeur_norme_geo)
 }
@@ -627,7 +627,7 @@ fonction_simul_BR_accept_reject<-function(NB_BR,modele_BR,seuil_Frech){
     Simul<-SpatialExtremes::rmaxstab(NB_BR-J,Locations,cov.mod="brown",
                                      range=modele_BR$param[1], 
                                      smooth=modele_BR$param[2])
-    L2<-apply(X = Simul,MARGIN = 1,FUN = calcul_norme_L2)
+    L2<-apply(X = Simul,MARGIN = 1,FUN = calcul_norm_L2)
     inds_taken<-which(L2<seuil_Frech)
     end<-length(inds_taken)+deb-1
     indices_base<-c(deb:end)
@@ -657,7 +657,7 @@ Procedure_MHastings<-function(echantillons_log_norm,Longueur_echantillon){
   L<-nrow(echantillons_log_norm)
   liste_sigma_l<-list()
   premiere_traject<-echantillons_log_norm[1,]
-  premiere_norme<-calcul_norme_L2(premiere_traject)
+  premiere_norme<-calcul_norm_L2(premiere_traject)
   liste_realisation_MH<-list()
   liste_realisation_MH[[1]]<-premiere_traject
   liste_lforme<-list()
@@ -668,7 +668,7 @@ Procedure_MHastings<-function(echantillons_log_norm,Longueur_echantillon){
   for(i in (2:L)){
     passe<-(i-1)
     #MH a verifier. L'expression est différente de ce qu'on voit d'habitude. 
-    rapport<-(calcul_norme_L2(echantillons_log_norm[i,])/calcul_norme_L2(series = liste_realisation_MH[[passe]]))
+    rapport<-(calcul_norm_L2(echantillons_log_norm[i,])/calcul_norm_L2(series = liste_realisation_MH[[passe]]))
     p_n<-min(rapport,1)
     if(p_n==1){
       U1<-1
@@ -685,7 +685,7 @@ Procedure_MHastings<-function(echantillons_log_norm,Longueur_echantillon){
       Q<-c(Q,1)
       trajectoire_conservee<-echantillons_log_norm[i,]
     }
-    Norme<-calcul_norme_L2(trajectoire_conservee)
+    Norme<-calcul_norm_L2(trajectoire_conservee)
     liste_realisation_MH[[i]]<-trajectoire_conservee
     candidat_theta<-(trajectoire_conservee/Norme)
     Moy<-mean(candidat_theta)
@@ -822,7 +822,7 @@ fonction_reconstitution_trajectoire<-function(Vecteur_coords,Base_fonctions_p,NB
   return(FORME_ACP)
 }
 
-#' function_Structure_Matrice
+#' function_Structure_Matrix
 #'
 #' @param NB_dim : int. Number of coordinates
 #'
@@ -830,7 +830,7 @@ fonction_reconstitution_trajectoire<-function(Vecteur_coords,Base_fonctions_p,NB
 #' @export
 #'
 #' @examples
-function_Structure_Matrice<-function(NB_dim){
+function_Structure_Matrix<-function(NB_dim){
   
   Matrix_C <- c()
   for(j in c(1:NB_dim)){
@@ -1117,7 +1117,7 @@ empirical_extremogram<-function(Matrix_couples,inds_select,Tau){
 #' @examples
 fonction_analyse_convergence<-function(Obs,K){
   
-  NORMES<-apply(Obs,FUN = calcul_norme_L2,MARGIN = 1)
+  NORMES<-apply(Obs,FUN = calcul_norm_L2,MARGIN = 1)
   pas_x<-1/ncol(Obs)
   indice_k<-order(NORMES,decreasing = TRUE)[K]
   Seuil_L2<-NORMES[indice_k]
@@ -1586,7 +1586,7 @@ fonction_simul_HTawn<-function(x,y,seuil_x,seuil_y,vecteur_x_reg){
   return(value_predicted)
 }
 
-Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,j_show){
+Analyse_threshd_GPD<-function(dates_taken,data,fonction_threshd,n.dens,name,j_show){
   P_valeur_AD_excedent_GPD<-c()
   P_valeur_KS_excedent_GPD<-c()
   
@@ -1596,19 +1596,19 @@ Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,j_sho
   Vect_scale<-c()
   Vect_seuil<-c()
   vect_gamma_Moment<-c()
-  plot(c(1:37),fonction_seuil,ylim = c(0,0.30),
-       main = paste0("Poids mis sur la queue de distribution pour ",nom))
+  plot(c(1:37),fonction_threshd,ylim = c(0,0.30),
+       main = paste0("Poids mis sur la queue de distribution pour ",name))
   
   par(mfrow=c(3,3))
   for(t in c(1:37)){
-    p_ut<-fonction_seuil[t]
+    p_ut<-fonction_threshd[t]
     # ML_loi excedents --------------------------------------------------------
-    variable_ech_original<-donnees[,t]
+    variable_ech_original<-data[,t]
     seuil_t<-quantile(variable_ech_original,1-p_ut)
-    nom_graph<-ifelse(nom=="Surcote","S",nom)
+    name_graph<-ifelse(name=="Surcote","S",name)
     if(t%in%j_show){
       Outils_POT_graphique(series=variable_ech_original,seuil=seuil_t,Q1=0.50,Q2=0.98,
-                           dates=dates_prises,
+                           dates=dates_taken,
                            titre_variable="")
     }
     
@@ -1626,8 +1626,8 @@ Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,j_sho
         return(part1+seuil_t)
       }
       numerateur<-(1-x)^(-gamma_t)-1
-      denom<-gamma_t
-      y<-((numerateur/denom)*sigma_t)+seuil_t
+      dename<-gamma_t
+      y<-((numerateur/dename)*sigma_t)+seuil_t
       return(y)
     }
     
@@ -1639,7 +1639,7 @@ Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,j_sho
     vect_gamma_Moment<-c(vect_gamma_Moment,gamma_moment_t)
     
     # Niveaux de retour -------------------------------------------------------
-    Dates_converted<-lubridate::decimal_date(as.POSIXct(dates_prises, format="%d/%m/%Y"))
+    Dates_converted<-lubridate::decimal_date(as.POSIXct(dates_taken, format="%d/%m/%Y"))
     Dates_converted<-floor(Dates_converted)
     time.rec<-range(Dates_converted)
     NB_annees<-diff(time.rec)
@@ -1647,7 +1647,7 @@ Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,j_sho
     
     # simulationsGPD<-QGPDpareto(ppoints(n = N_excedents))
     # extRemes::qqplot(queue_distrib,simulationsGPD,xlab = "Quantiles empiriques",ylab="Quantiles théoriques")
-    # mtext(paste0("Comparaison de ",nom_variable," en t=",t," avec une GPD(",round(seuil_t,1),",",round(sigma_t,1),",",round(gamma_t,1),")"))
+    # mtext(paste0("Comparaison de ",name_variable," en t=",t," avec une GPD(",round(seuil_t,1),",",round(sigma_t,1),",",round(gamma_t,1),")"))
     Vect_gamma<-c(Vect_gamma,gamma_t)
     Vect_scale<-c(Vect_scale,sigma_t)
     Vect_seuil<-c(Vect_seuil,seuil_t)
@@ -1671,32 +1671,32 @@ Analyse_seuil_GPD<-function(dates_prises,donnees,fonction_seuil,n.dens,nom,j_sho
     geom_point(aes(y=AD,col="AD"))+
     geom_line(aes(y=AD,col="AD"))+
     ylim(c(0,1))+
-    ggtitle(paste0("p valeur des tests ",nom,"(t)|",nom,"(t)>u(t)~GPD(u(t)",",","\u03C3","(t),","\u03B3","(t))"))+
+    ggtitle(paste0("p valeur des tests ",name,"(t)|",name,"(t)>u(t)~GPD(u(t)",",","\u03C3","(t),","\u03B3","(t))"))+
     xlab(label = "t")+
     ylab(label="p valeur")+
     geom_hline(yintercept = 0.05,show.legend = TRUE)+
     scale_color_manual("Test",values = c("red","blue"))+
-    labs(caption = paste0("n=",nrow(donnees),", n.dens=",n.dens))
+    labs(caption = paste0("n=",nrow(data),", n.dens=",n.dens))
   print(GG_TEST_GPD)
   
   
   # Garder en memoire EV par temps ------------------------------------------
   df_EV_evol<-cbind.data.frame(Vect_seuil,Vect_scale,Vect_gamma,
-                               Vect_Theta,fonction_seuil,P_valeur_AD_excedent_GPD)
+                               Vect_Theta,fonction_threshd,P_valeur_AD_excedent_GPD)
   colnames(df_EV_evol)<-c("seuil_t","échelle_t","forme_t",
                           "Theta_t","p_u_t","p_val_ADarling")
   
   # Export de la table ------------------------------------------------------
-  write.csv(x=df_EV_evol,file=paste0("Work_RVariations/EVA_",nom,".csv"))
+  write.csv(x=df_EV_evol,file=paste0("Work_RVariations/EVA_",name,".csv"))
   return(P_valeur_AD_excedent_GPD)
 }
 
-Analyse_Pareto_par_temps<-function(donnees_Pareto,nom,n.dens){
+Analyse_Pareto_per_time<-function(data_Pareto,name,n.dens){
   P_valeur<-c()
   P_valeur_AD<-c()
   par(mfrow=c(3,3))
   for(t in c(1:37)){
-    variable_t<-donnees_Pareto[,t]
+    variable_t<-data_Pareto[,t]
     TEST_ks_pareto<-ks.test(x = variable_t,extRemes::"pevd",threshold=1,scale=1,shape=1,type="GP")
     P_valeur<-c(P_valeur,TEST_ks_pareto$p.value)
     TEST_AD_pareto<-goftest::ad.test(x = variable_t,extRemes::"pevd",threshold=1,scale=1,shape=1,type="GP")
@@ -1711,7 +1711,7 @@ Analyse_Pareto_par_temps<-function(donnees_Pareto,nom,n.dens){
     geom_point(aes(y=AD,col="AD"))+
     geom_line(aes(y=AD,col="AD"))+
     ylim(c(0,1))+
-    ggtitle(paste0("p valeur des tests T(",nom,")(t)~Pareto(1)"))+
+    ggtitle(paste0("p valeur des tests T(",name,")(t)~Pareto(1)"))+
     xlab(label = "t")+
     ylab(label="p valeur")+
     geom_hline(yintercept = 0.05,show.legend = TRUE)+
