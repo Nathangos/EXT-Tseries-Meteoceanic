@@ -24,28 +24,28 @@ source("fonctions/fonctions.R")
 
 ```{r}
 F_names<-ls()
-nb_coeurs<-detectCores()-4
-coeurs<-makeCluster(nb_coeurs)
-clusterExport(coeurs,varlist=F_names)
+nb_CPU_hearts<-detectCores()-4
+CPU_hearts<-makeCluster(nb_CPU_hearts)
+clusterExport(CPU_hearts,varlist=F_names)
 df<-read.csv(file = "Data_Surge.csv")[,c(2:39)]
 ```
 
 ```{r}
-nom_variable<-"Surcote"
+name_variable<-"Surcote"
 SELECT<-TRUE
-saut_pas<-3
+step_delta<-3
 ```
 
 ```{r}
 
 obs<-df[,c(1:37)]
 # ACF of the norm series ----------------------------------------------
-Svariable<-apply(obs,calcul_norme_L2,
+Svariable<-apply(obs,calcul_norm_L2,
                     MARGIN=1)
 ACF_S<-acf(Svariable,lag=1000,plot = FALSE)
 PACF_S<-pacf(Svariable,lag=1000,plot = FALSE)
-plot(ACF_S,ylim=c(-1,1),main=bquote("ACF of N"[.(nom_variable)]))
-plot(PACF_S,ylim=c(-1,1),main=bquote("PACF of N"[.(nom_variable)]))
+plot(ACF_S,ylim=c(-1,1),main=bquote("ACF of N"[.(name_variable)]))
+plot(PACF_S,ylim=c(-1,1),main=bquote("PACF of N"[.(name_variable)]))
 
 # ACF at each time.  ---------------------------------------------------
 for (t in 1:1){
@@ -61,158 +61,153 @@ for (t in 1:1){
 }
 ```
 ```{r}
-# Date pic de la marée.  --------------------------------------------------
+# Date tidal peak --------------------------------------------------
 date_compar<-df$Date
 colonne<-as.numeric(substr(date_compar,4,5))
-vecteur_hiver<-c(1:3,9:12)
-Indices_autres<-which(!colonne%in%vecteur_hiver)
-Indices_hiver<-which(colonne%in%vecteur_hiver)
-date_compar_hiver<-date_compar[Indices_hiver]
-obs_hiver<-obs[Indices_hiver,]
-L_hiver<-nrow(obs_hiver)
-#ACF obtenu
-variable_hiver1<-obs_hiver[,1]
-ACF_t<-acf(variable_hiver1,lag=1000,plot = FALSE)
-plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",nom_variable,"at t=1 (winter)"))
+vector_winter<-c(1:3,9:12)
+Indexes_other<-which(!colonne%in%vector_winter)
+Indexes_winter<-which(colonne%in%vector_winter)
+date_compar_winter<-date_compar[Indexes_winter]
+obs_winter<-obs[Indexes_winter,]
+L_winter<-nrow(obs_winter)
+#ACF obtained
+variable_winter1<-obs_winter[,1]
+ACF_t<-acf(variable_winter1,lag=1000,plot = FALSE)
+plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",name_variable,"at t=1 (winter)"))
 
-obs_autres<-obs[Indices_autres,]
-
-
+obs_other<-obs[Indexes_other,]
 ```
 
 ```{r}
 # Linear regression -----------------------------------------------------
-vecteur_reg_lin<-c()
-vecteur_r<-c()
-vecteur_signf<-c()
-vecteur_beta_chap<-c()
-vecteur_r_J<-c()
+vector_reg_lin<-c()
+vector_r<-c()
+vector_signf<-c()
+vector_beta_chap<-c()
+vector_r_J<-c()
 for (col in c(1:37)){
   # Winter ---------
-  variable<-obs_hiver[,col]
+  variable<-obs_winter[,col]
   L<-length(variable)
-  vecteur_temps_milieu<-c(1:L)
-  reg<-lm(variable~vecteur_temps_milieu)
+  vector_time_milieu<-c(1:L)
+  reg<-lm(variable~vector_time_milieu)
   objet<-coef(summary(reg))
-  Constante<-as.numeric(predict(object = reg,newdata=data.frame(vecteur_temps_milieu=0)))
-  predictions_RL_hiver<-as.numeric(reg$fitted.values)
-  Residus<-variable-predictions_RL_hiver+Constante
-  vecteur_r<-c(vecteur_r,Residus)
-  vecteur_reg_lin<-c(vecteur_reg_lin,predictions_RL_hiver)
-  p_valeur_signf<-objet[2,4]
-  vecteur_beta_chap<-c(vecteur_beta_chap,objet[2,1])
-  vecteur_signf<-c(vecteur_signf,p_valeur_signf)
+  Constante<-as.numeric(predict(object = reg,newdata=data.frame(vector_time_milieu=0)))
+  predictions_RL_winter<-as.numeric(reg$fitted.values)
+  Residuals<-variable-predictions_RL_winter+Constante
+  vector_r<-c(vector_r,Residuals)
+  vector_reg_lin<-c(vector_reg_lin,predictions_RL_winter)
+  p_value_signf<-objet[2,4]
+  vector_beta_chap<-c(vector_beta_chap,objet[2,1])
+  vector_signf<-c(vector_signf,p_value_signf)
 }
-df_coeff<-cbind.data.frame(vecteur_beta_chap)
-colnames(df_coeff)<-c(paste("Coefficient lineaire de",nom_variable,"(Hiver)"))
+df_coeff<-cbind.data.frame(vector_beta_chap)
+colnames(df_coeff)<-c(paste("Linear coefficient of",name_variable,"(winter)"))
 ```
 
 ```{r}
-df_signf<-cbind.data.frame(vecteur_signf)
-colnames(df_signf)<-c(paste("p_valeur de",nom_variable,"(Hiver)"))
-Residus_hiver<-matrix(vecteur_r,nrow=L_hiver)
-print(dim(Residus_hiver))
-matrice_tendance<-matrix(vecteur_reg_lin,nrow=L_hiver)
-fin<-ncol(Residus_hiver)+2
+df_signf<-cbind.data.frame(vector_signf)
+colnames(df_signf)<-c(paste("p_value of ",name_variable,"(winter)"))
+Residuals_winter<-matrix(vector_r,nrow=L_winter)
+matrix_tendance<-matrix(vector_reg_lin,nrow=L_winter)
+fin<-ncol(Residuals_winter)+2
 for (t in 1){
   variable_t<-obs[,t]
   ACF_t<-acf(variable_t,lag=1000,plot = FALSE)
   PACF_t<-pacf(variable_t,lag=1000,plot = FALSE)
   vecty<-(30:length(variable_t)/2)
-  if(nom_variable=="Surcote"){
+  if(name_variable=="Surcote"){
     plot(ACF_t,ylim=c(-1,1),main="")
     plot(PACF_t,ylim=c(-1,1),main="")
 
   }
   else{
-    plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",nom_variable,"at t=",t," (whole data)"))
-    plot(PACF_t,ylim=c(-1,1),main=paste("PACF of",nom_variable,"at t=",t," (whole data)"))
+    plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",name_variable,"at t=",t," (whole data)"))
+    plot(PACF_t,ylim=c(-1,1),main=paste("PACF of",name_variable,"at t=",t," (whole data)"))
     
   }
   # Winter -----------------------------------------------------------------
-  variable_t<-Residus_hiver[,t]
+  variable_t<-Residuals_winter[,t]
   ACF_t<-acf(variable_t,lag=1000,plot = FALSE)
   PACF_t<-pacf(variable_t,lag=1000,plot = FALSE)
   vecty<-(30:length(variable_t)/2)
-  plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",nom_variable," detrended at t=",t," (hiver)"))
-  plot(PACF_t,ylim=c(-1,1),main=paste("PACF of",nom_variable,"detrended at t=",t," (hiver)"))
+  plot(ACF_t,ylim=c(-1,1),main=paste("ACF of",name_variable," detrended at t=",t," (winter)"))
+  plot(PACF_t,ylim=c(-1,1),main=paste("PACF of",name_variable,"detrended at t=",t," (winter)"))
   
 }
 
 ```
 
 ```{r}
-
 # Take one observation out of ... -------------------------------------------------------
-Indice_pris_hiver<-seq.int(from = 1,to = L_hiver,by = saut_pas)
-vect_matin_soir<-rep(c("(morning)","(evening)"),length(date_compar_hiver)/2)
-date_compar_hiver_MSOIR<-paste(date_compar_hiver,vect_matin_soir)
-date_compar_final<-date_compar_hiver_MSOIR[Indice_pris_hiver]
-Residus_detrend_hiver<-Residus_hiver[Indice_pris_hiver,]
-Mat<-matrice_tendance[Indice_pris_hiver,]
-NL2<-apply(Residus_detrend_hiver,MARGIN = 1,FUN = calcul_norme_L2)
+Index_taken_winter<-seq.int(from = 1,to = L_winter,by = step_delta)
+vect_matin_soir<-rep(c("(morning)","(evening)"),length(date_compar_winter)/2)
+date_compar_winter_MSOIR<-paste(date_compar_winter,vect_matin_soir)
+date_compar_final<-date_compar_winter_MSOIR[Index_taken_winter]
+Residuals_detrend_winter<-Residuals_winter[Index_taken_winter,]
+Mat<-matrix_tendance[Index_taken_winter,]
+NL2<-apply(Residuals_detrend_winter,MARGIN = 1,FUN = calcul_norm_L2)
 write.csv(file = "data_detrend_Winter/dates.csv",
           x= date_compar_final)
+```
+
+```{r}
 
 # ACF post selection --------------------------------------------------------
 ACF_S<-acf(NL2,lag=1000,plot = FALSE)
 PACF_S<-pacf(NL2,lag=1000,plot = FALSE)
-plot(ACF_S,ylim=c(-1,1),main=bquote("ACF après transformation de N"[.(nom_variable)]))
-ACF_residus<-acf(Residus_detrend_hiver[,1],lag=1000,plot = FALSE)
-PACF_residus<-pacf(Residus_detrend_hiver[,1],lag=1000,plot = FALSE)
-plot(ACF_residus,ylim=c(-1,1),main=paste("ACF of",nom_variable," detrended at t=",t," (winter), one out of",saut_pas))
-plot(PACF_residus,ylim=c(-1,1),main=paste("PACF of",nom_variable," detrended at t=",t," (winter), one out of",saut_pas))
+plot(ACF_S,ylim=c(-1,1),main=bquote("ACF après transformation de N"[.(name_variable)]))
+ACF_Residuals<-acf(Residuals_detrend_winter[,1],lag=1000,plot = FALSE)
+PACF_Residuals<-pacf(Residuals_detrend_winter[,1],lag=1000,plot = FALSE)
+plot(ACF_Residuals,ylim=c(-1,1),main=paste("ACF of",name_variable," detrended at t=",t," (winter), one out of",step_delta))
+plot(PACF_Residuals,ylim=c(-1,1),main=paste("PACF of",name_variable," detrended at t=",t," (winter), one out of",step_delta))
 ```
-
-
 
 
 ```{r}
 
-# Presentation résultat ---------------------------------------------------
+# Presentation result ---------------------------------------------------
 
 # (1) Stat desc ---------------------------------------------------------------
-mu_t<-colMeans(Residus_detrend_hiver)
-sigma_t<-apply(X = Residus_detrend_hiver,MARGIN = 2,FUN = sd)
+mu_t<-colMeans(Residuals_detrend_winter)
+sigma_t<-apply(X = Residuals_detrend_winter,MARGIN = 2,FUN = sd)
 df_stat_desc<-cbind.data.frame(mu_t,sigma_t)
-colnames(df_stat_desc)<-c("Moyenne","Ecart-type")
+colnames(df_stat_desc)<-c("Mean","Std")
 df_stat_desc<-melt(t(df_stat_desc))
-colnames(df_stat_desc)<-c("Statistique","Temps","Valeur")
-TITRESD<-paste0("Statistiques pour ",nom_variable, " en hiver")
-STATdesc<-ggplot(data = df_stat_desc,aes(x=Temps,y=Valeur,col=Statistique,group=interaction(Statistique)))+
+colnames(df_stat_desc)<-c("Statistic","time","value")
+TitleSD<-paste0("Statistics for ",name_variable, " in winter")
+STATdesc<-ggplot(data = df_stat_desc,aes(x=time,y=value,col=Statistic,group=interaction(Statistic)))+
   geom_line()+
   geom_point()+
-  ggtitle(TITRESD)
-  
+  ggtitle(TitleSD)
 print(STATdesc)
+```
 
-B<-melt(t(Residus_detrend_hiver))
-colnames(B)<-c("Temps","Individu","Mesure")
-B$Temps<-as.factor(B$Temps)
-TITRE<-paste0("Densité en chaque temps pour ",nom_variable, " en hiver")
-PV<-ggplot2::ggplot(data = B,aes(Temps,Mesure,fill=Temps))+
+```{r}
+B<-melt(t(Residuals_detrend_winter))
+colnames(B)<-c("time","Individual","Measure")
+B$time<-as.factor(B$time)
+Title<-paste0("Density at each time for ",name_variable, " in winter")
+PV<-ggplot2::ggplot(data = B,aes(time,Measure,fill=time))+
   geom_violin()+
   geom_boxplot(width=0.2)+
   guides(fill = "none")+
-  ggtitle(TITRE)+
-  ylab("Densité")
+  ggtitle(Title)+
+  ylab("Density")
 print(PV)  
-plot(colMeans(obs_hiver),main=paste0("Fonction moyenne pour ",nom_variable," en hiver"))
-plot(colMeans(Residus_detrend_hiver),main=paste0("Fonction moyenne pour les résidus de ",nom_variable," en hiver"))
-print(dim(Residus_detrend_hiver))
+plot(colMeans(obs_winter),main=paste0("Mean function for ",name_variable," en winter"))
+plot(colMeans(Residuals_detrend_winter),main=paste0("Mean funtion for the residuals of ",name_variable," in winter"))
 ```
-
 
 ## Export of residuals
 ```{r}
-write.csv(x = Residus_detrend_hiver,
-          file =paste0("data_detrend_Winter/",nom_variable,"_detrend.csv"))
-write.csv(x=Mat,file=paste0("data_detrend_Winter/RL_",nom_variable,".csv"))
+write.csv(x = Residuals_detrend_winter,
+          file =paste0("data_detrend_Winter/",name_variable,"_detrend.csv"))
+write.csv(x=Mat,file=paste0("data_detrend_Winter/RL_",name_variable,".csv"))
 ```
-
 
 ```{r}
 # End of the detrending.
-stopCluster(coeurs)
+stopCluster(CPU_hearts)
 ```
 

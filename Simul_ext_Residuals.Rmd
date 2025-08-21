@@ -28,7 +28,9 @@ require(ggside)
 F_names<-ls()
 nb_CPU_hearts<-detectCores()-4
 
+```
 
+```{r}
 # Cluster opening --------------------------------------------------
 CPU_hearts<-makeCluster(nb_CPU_hearts)
 clusterExport(CPU_hearts,varlist=F_names)
@@ -41,7 +43,7 @@ link_data<-paste0("residuals/S_residuals.csv")
 std_data<-TRUE
 p_U<-rep(0.10,37)
 p_L2<-0.05
-NB_dim_ACP<-3
+NB_dim_PCA<-3
 opt_Frech<-TRUE
 M<-2000
 n.dens<-2^(14)
@@ -87,11 +89,11 @@ L_EVT<-list("gamma"=result_P$gamma,
             "p_u"=result_P$p_u)
 vector_pareto<-do.call(cbind.data.frame,PARETO)
 
-# Hypothèse Pareto pour la transformation ---------------------------------
+#Pareto hypothesis ---------------------------------
 Analyse_Pareto_per_time(data_Pareto = vector_pareto,name = name_variable,n.dens=n.dens)
 ```
 
-## 5) Approach the angle of the transShaped time series
+## 5) Approach the angle of the transformed time series
 ```{r}
 if(opt_Frech==TRUE){
   Unif<-1-(as.matrix(vector_pareto))^(-1)
@@ -104,7 +106,11 @@ vector_norm_L2<-apply(X= vector_pareto,MARGIN = 1,FUN =calcul_norm_L2)
 
 rownames(vector_pareto)<-1:nrow(vector_pareto)
 colnames(vector_pareto)<-c(1:ncol(vector_pareto))
+```
 
+
+```{r}
+# Selection of extreme time series 
 v_threshd<-quantile(vector_norm_L2,1-p_L2)
 Inds_Exts<-which(vector_norm_L2>v_threshd)
 Vect_L2_exts<-vector_norm_L2[Inds_Exts]
@@ -114,21 +120,27 @@ matplot(t(Data[Inds_Exts,]),type="l")
 mtext(paste0("Extreme obs conserved (",name_variable,")"))
 Exts<-vector_pareto[Inds_Exts,]
 
+# Compute the angle of extreme time series 
 Comp_angular<-t(t(Exts)%*%diag(Vect_L2_exts^(-1)))
 matplot(t(Comp_angular),type="l")
 mtext(paste0("Angular components (",name_variable,")"))
-# ACP --------------------------------------------------
+
+```
+
+
+```{r}
+# PCA --------------------------------------------------
 sd_time<-as.numeric(apply(X = Comp_angular,
                            MARGIN = 2,FUN = sd))
 esp_time<-as.numeric(colMeans(Comp_angular))
 Analyse<-FactoMineR::PCA(X =Comp_angular,
                          scale.unit = std_data,
-                         ncp = NB_dim_ACP)
-
+                         ncp = NB_dim_PCA,graph = FALSE)
 ```
 
 We keep the first $J$ eigenvectors. Thus, we reduce the problem dimension as we only approach the law of the first two coordinates.
 ```{r}
+### Choice of the number of eigenvectors.
 val_lambda<-Analyse$eig[,1]
 vect_diff<-cumsum(c(0,val_lambda))/sum(val_lambda)
 vector_propvarexp<-1-vect_diff
@@ -141,87 +153,118 @@ par(mfrow=c(1,2))
 Coord1<-Analyse$ind$coord[,1]
 Coord2<-Analyse$ind$coord[,2]
 F_eigen<-Analyse$svd$V
+```
+
+```{r}
+# Data visualisation for the PCA coordinates
 plot(Coord1,Coord2)
-Coordinates<-Analyse$ind$coord[,1:NB_dim_ACP]
-write.csv(file=paste0("residuals/ACP_results/Theta_coords_ACP_",name_variable,".csv"),x=Coordinates)
+Coordinates<-Analyse$ind$coord[,1:NB_dim_PCA]
+write.csv(file=paste0("residuals/PCA_results/Theta_coords_PCA_",name_variable,".csv"),x=Coordinates)
 dataUnif<-pobs(Coordinates)
 ```
 
 ### Copula theory to approach the law of coordinates
 ```{r}
-
 # Simulation_norm --------------------------------------------------------
 values_unif<-runif(M)
 reals_P_std<-sapply(values_unif,Generation_Pareto_std)
 COEFF<-reals_P_std*v_threshd
 
-if(NB_dim_ACP==2){
+### Code for bivariate vectors.
+
+if(NB_dim_PCA==2){
   Family_chosen<-BiCopSelect(dataUnif[,1],dataUnif[,2])
-  Realisations_copules<-BiCopSim(N=M,family =Family_chosen$family,par = Family_chosen$par,par2 =Family_chosen$par2,check.pars = TRUE)
+  Realisations_copulas<-BiCopSim(N=M,family =Family_chosen$family,par = Family_chosen$par,par2 =Family_chosen$par2,check.pars = TRUE)
   Summary_cop<-summary(Family_chosen)
   
   Short_famille_name<-BiCopName(family = Summary_cop[["family"]],short=TRUE)
   elt<-c(Summary_cop[["familyname"]],Summary_cop[["par"]],Summary_cop[["par2"]],Summary_cop[["tau"]],Summary_cop[["beta"]],unlist(Summary_cop[["taildep"]]))
   L<-length(elt)
   elt<-as.data.frame(t(elt))
-  colnames(elt)<-c("Nom","par","par2","tau","beta","ltd","uptd")
+  colnames(elt)<-c("name","par","par2","tau","beta","ltd","uptd")
   elt[,c("par","par2","tau","beta","ltd","uptd")]<-round(as.numeric(elt[,c("par","par2","tau","beta","ltd","uptd")]),1)
-  write.csv(elt,file = paste0("residuals/",name_variable,"_coords_UV_copules.csv"),
+  write.csv(elt,file = paste0("residuals/",name_variable,"_coords_UV_copulas.csv"),
            row.names = FALSE)
-}else{
-matrix_C<-function_Structure_Matrix(NB_dim = NB_dim_ACP)
-Family_chosen<-VineCopula::RVineCopSelect(dataUnif[,c(1:NB_dim_ACP)],
-                                            Matrix = matrix_C)
-Code_utilisee<-summary(Family_chosen)$family
-write.csv(x = Code_utilisee,
-          file = paste0("residuals/ACP_results/",name_variable,"_modele_Vine.txt"))
-Realisations_copules<-VineCopula::RVineSim(N=M,RVM = Family_chosen) 
-obj_family<-summary(Family_chosen)
-obj_family$par<-ifelse(obj_family$cop=="I",NA,obj_family$par)
-obj_family$par2<-ifelse(obj_family$cop=="I",NA,obj_family$par2)
-obj_family$utd<-ifelse(obj_family$cop %in% c("I","BB8_90","Tawn2_90","BB8","J270","J90","F"),NA,
-                        obj_family$utd)
-obj_family$ltd<-ifelse(obj_family$cop %in% c("I","BB8_90","Tawn2_90","BB8","J270","J90","F","Tawn","J","Tawn2","SC"),NA,
-                        obj_family$ltd)
-obj_family$family<-BiCopName(obj_family$family,short = FALSE)
-dim_variable<-ncol(obj_family)
-obj_family<-obj_family[,c(1:3,5:dim_variable)]
-colnames(obj_family)[c(1:3)]<-c("arbre","couples-cond","nom-copule")
-obj_family[,c("par","par2","tau","utd","ltd")]<-round(obj_family[,c("par","par2","tau","utd","ltd")],1)
-write.csv(obj_family,file = paste0("residuals/",name_variable,"_coords_UV_copules.csv"))
 }
   
 ```
 
 ```{r}
+# Vine copula to model the coordinate law for J>2
+if(NB_dim_PCA>2){
+matrix_C<-function_Structure_Matrix(NB_dim = NB_dim_PCA)
+Family_chosen<-VineCopula::RVineCopSelect(dataUnif[,c(1:NB_dim_PCA)],Matrix = matrix_C)
+
+Code_used<-summary(Family_chosen)$family
+write.csv(x = Code_used,
+          file =paste0("residuals/PCA_results/",name_variable,"_modele_Vine.txt"))
+
+Realisations_copulas<-VineCopula::RVineSim(N=M,RVM = Family_chosen) 
+obj_family<-summary(Family_chosen)
+obj_family$par<-ifelse(obj_family$cop=="I",NA,obj_family$par)
+obj_family$par2<-ifelse(obj_family$cop=="I",NA,obj_family$par2)
+obj_family$utd<-ifelse(obj_family$cop %in% c("I","BB8_90","Tawn2_90","BB8","J270","J90","F"),NA,
+                        obj_family$utd)
+obj_family$ltd<-ifelse(obj_family$cop %in% c("I","BB8_90","Tawn2_90","BB8","J270","J90","F","Tawn","J","Tawn2","SC"),NA,obj_family$ltd)
+
+obj_family$family<-BiCopName(obj_family$family,short = FALSE)
+dim_variable<-ncol(obj_family)
+
+obj_family<-obj_family[,c(1:3,5:dim_variable)]
+colnames(obj_family)[c(1:3)]<-c("tree","couples-cond","name-copula")
+obj_family[,c("par","par2","tau","utd","ltd")]<-round(obj_family[,c("par","par2","tau","utd","ltd")],1)
+write.csv(obj_family,file = paste0("residuals/",name_variable,"_coords_UV_copulas.csv"))
+}
+```
+
+```{r}
+# Comparing simulations from the copula model with data coordinates (first dimensions)
 par(mfrow=c(1,2))
-plot(dataUnif[,1],dataUnif[,2],xlab="Première coordonnée (observations)",ylab="Seconde coordonnée (observations)")
-plot(Realisations_copules[,1],Realisations_copules[,2],col="red",xlab="Première coordonnée",ylab="Seconde coordonnée")
-title(paste0("Comparaison entre les observations et les simulations pour ", name_variable),outer = TRUE,line=-3)
-# Conversion dans la bonne échelle ----------------------------------------
-matrix_coords_ALL<-matrix(NA,ncol = NB_dim_ACP,nrow = M)
-for(l in c(1:NB_dim_ACP)){
-  matrix_coords_ALL[,l]<-quantile(Coordinates[,l],probs=Realisations_copules[,l])
+plot(dataUnif[,1],dataUnif[,2],xlab="First coordinate (observations)",ylab="Second coordinate (observations)")
+
+plot(Realisations_copulas[,1],Realisations_copulas[,2],col="red",xlab="First coordinate",ylab="Second coordinate")
+title(paste0("Comparing the observations and simulations for ", name_variable),outer = TRUE,line=-3)
+
+```
+
+```{r}
+### Comparing simulated and data coordinates for the last dimensions.
+plot(dataUnif[,2],dataUnif[,2],xlab="Second coordinate (observations)",ylab="Third coordinate (observations)")
+
+plot(Realisations_copulas[,2],Realisations_copulas[,3],col="red",xlab="Second coordinate",ylab="Third coordinate")
+title(paste0("Comparing the observations and simulations for ", name_variable),outer = TRUE,line=-3)
+```
+
+```{r}
+# Simulation of the theta component thanks to the simulation of the PCA coordinates ----------------------------------------
+matrix_coords_ALL<-matrix(NA,ncol = NB_dim_PCA,nrow = M)
+for(l in c(1:NB_dim_PCA)){
+  matrix_coords_ALL[,l]<-quantile(Coordinates[,l],probs=Realisations_copulas[,l])
 }
 if(std_data==TRUE){
-  Shape_ACP<-function_reconstitution_trajectory_std(Vector_coords = matrix_coords_ALL,Base_functions_p = F_eigen,
-  NB_dim =NB_dim_ACP,mu_t = esp_time,sd_t = sd_time)
+  Shape_PCA<-function_reconstitution_trajectory_std(Vector_coords = matrix_coords_ALL,Base_functions_p = F_eigen,
+  NB_dim =NB_dim_PCA,mu_t = esp_time,sd_t = sd_time)
 }else{
-  Shape_ACP<-fonction_reconstitution_trajectoire(vector_coords =   matrix_coords_ALL,Base_fonctions_p = F_eigen,NB_dim = NB_dim_ACP,mu_t = esp_time)
+  Shape_PCA<-fonction_reconstitution_trajectoire(vector_coords =   matrix_coords_ALL,Base_fonctions_p = F_eigen,NB_dim = NB_dim_PCA,mu_t = esp_time)
 }
-L2_proche_1<-apply(X =Shape_ACP,MARGIN = 1,FUN = calcul_norm_L2)
-Shape_ACP<-t(t(Shape_ACP)%*%diag(L2_proche_1^(-1)))
+```
 
-New_obs_P_acp<-t(t(Shape_ACP)%*%diag(COEFF))
+
+```{r}
+L2_theta<-apply(X =Shape_PCA,MARGIN = 1,FUN = calcul_norm_L2)
+Shape_PCA<-t(t(Shape_PCA)%*%diag(L2_theta^(-1)))
+
+New_obs_P_PCA<-t(t(Shape_PCA)%*%diag(COEFF))
 threshd_marg<-log(10^5)^(-1)
-indicator_pos<-which(apply(X=New_obs_P_acp-threshd_marg,
+indicator_pos<-which(apply(X=New_obs_P_PCA-threshd_marg,
                                FUN=fonction_trajectoire_positive,MARGIN = 1)==TRUE)
-New_obs_P_acp<-New_obs_P_acp[indicator_pos,]
-f_copy<-Shape_ACP[indicator_pos,]
+New_obs_P_PCA<-New_obs_P_PCA[indicator_pos,]
+f_copy<-Shape_PCA[indicator_pos,]
 Gap<-M-length(indicator_pos)
 Shape_for_analyse<-f_copy
 coord_for_analyse<-matrix_coords_ALL[indicator_pos,]
 ```
+
 
 As we are able to approach the law of angle with the PCA, we now use the results in regular variations to simulate extreme time series with heavy-tail margins. 
 
@@ -230,22 +273,22 @@ As we are able to approach the law of angle with the PCA, we now use the results
 ##(1) Simulate new angles
 ```{r}
 while (Gap!=0){
-  if(NB_dim_ACP==2){
-    Real_copules<-BiCopSim(N=Gap,family =Family_chosen$family,par = Family_chosen$par,par2 =Family_chosen$par2,check.pars = TRUE)
+  if(NB_dim_PCA==2){
+    Real_copulas<-BiCopSim(N=Gap,family =Family_chosen$family,par = Family_chosen$par,par2 =Family_chosen$par2,check.pars = TRUE)
   }
   else{
-    Real_copules<-VineCopula::RVineSim(N=Gap,RVM = Family_chosen)
+    Real_copulas<-VineCopula::RVineSim(N=Gap,RVM = Family_chosen)
   }
-  matrix_coords_Gap<-matrix(NA,ncol = NB_dim_ACP,nrow = Gap)
-  for(l in c(1:NB_dim_ACP)){
+  matrix_coords_Gap<-matrix(NA,ncol = NB_dim_PCA,nrow = Gap)
+  for(l in c(1:NB_dim_PCA)){
     if(Gap==1){
-      matrix_coords_Gap[,l]<-quantile(Coordinates[,l],probs=Real_copules[,l])
+      matrix_coords_Gap[,l]<-quantile(Coordinates[,l],probs=Real_copulas[,l])
     }
     else{
-      matrix_coords_Gap[,l]<-quantile(Coordinates[,l],probs=Real_copules[l])
+      matrix_coords_Gap[,l]<-quantile(Coordinates[,l],probs=Real_copulas[l])
     }
   }
-  Shape_Gap<-function_reconstitution_trajectory_std(Vector_coords = matrix_coords_Gap,Base_functions_p  = F_eigen,NB_dim = NB_dim_ACP,mu_t =esp_time,sd_t = sd_time)
+  Shape_Gap<-function_reconstitution_trajectory_std(Vector_coords = matrix_coords_Gap,Base_functions_p  = F_eigen,NB_dim = NB_dim_PCA,mu_t =esp_time,sd_t = sd_time)
   
   L2_Gap<-apply(X =Shape_Gap,MARGIN = 1,FUN = calcul_norm_L2)
   Shape_Gap<-t(t(Shape_Gap)%*%diag(L2_Gap^(-1)))
@@ -261,65 +304,67 @@ while (Gap!=0){
     Shape_for_analyse<-rbind(Shape_for_analyse,f_copy)
     coord_for_analyse<-rbind(coord_for_analyse,
                             matrix_coords_Gap[indicator_pos,])
-    New_obs_P_acp<-rbind(New_obs_P_acp,
+    New_obs_P_PCA<-rbind(New_obs_P_PCA,
                                New_obs_Gap[indicator_pos,])
     Gap<-Gap-length(indicator_pos)
   }
   
 }
-L2_realisations<-apply(X = New_obs_P_acp,MARGIN = 1,FUN = calcul_norm_L2)
-indexes_ACP<-1:nrow(New_obs_P_acp)
-Angle_realisations<-t(t(New_obs_P_acp)%*%diag(L2_realisations^(-1)))
-write.csv(x = New_obs_P_acp,
-          file=paste0("residuals/Pareto/",name_variable,"_simul_Pareto.csv"))
 
 ```
 
 ```{r}
+L2_realisations<-apply(X = New_obs_P_PCA,MARGIN = 1,FUN = calcul_norm_L2)
+indexes_PCA<-1:nrow(New_obs_P_PCA)
+Angle_realisations<-t(t(New_obs_P_PCA)%*%diag(L2_realisations^(-1)))
+write.csv(x = New_obs_P_PCA,
+          file=paste0("residuals/Pareto/",name_variable,"_simul_Pareto.csv"))
 # Comparing_Coordinates -------------------------------------------------
 write.csv(x=vector_pareto,file=paste0("residuals/Pareto/",name_variable,"_obs_ech_Pareto.csv"))
 Min_y<-min(c(apply(Shape_for_analyse,MARGIN = 2,FUN = min),
              apply(Comp_angular,MARGIN = 2,FUN = min)))
 Max_y<-max(c(apply(Shape_for_analyse,MARGIN = 2,FUN = max),
              apply(Comp_angular,MARGIN = 2,FUN = max)))
-Time<-(c(1:37)-19)*(1/6)
-xlab_chosen<-"Time (hour) with respect to tidal peak"
-matplot(Time,t(Comp_angular),type="l",ylim=c(Min_y,Max_y),xlab=" ",
-        ylab="value (-)",cex.lab=1.5)
-matplot(Time,t(Shape_for_analyse),type="l",ylim=c(Min_y,Max_y), 
-        xlab=NA,ylab=NA,cex.lab=1.5)
-nom_graph<-ifelse(name_variable=="Surcote","S",
-                  name_variable)
-mtext(xlab_chosen, side = 3, line = -22, outer = TRUE,
-      cex=1.5)
-# Work on the norm -----------------------------------------------------------
-norm_theta_simul<-apply(X = Shape_for_analyse,MARGIN = 1,
-                         FUN = calcul_norm_L2)
+
 ```
 
 
 ```{r}
+# Data visualisation-- comparing simulated angles with data angles
+Time<-(c(1:37)-19)*(1/6)
+xlab_chosen<-"Time (hour) with respect to tidal peak"
+matplot(Time,t(Comp_angular),type="l",ylim=c(Min_y,Max_y),xlab=" ",ylab="value (-)",cex.lab=1.5)
+
+matplot(Time,t(Shape_for_analyse),type="l",ylim=c(Min_y,Max_y),  xlab=NA,ylab=NA,cex.lab=1.5)
+name_graph<-ifelse(name_variable=="Surcote","S",
+                  name_variable)
+mtext(xlab_chosen, side = 3, line = -22, outer = TRUE,
+      cex=1.5)
+```
+
+```{r}
+# Norm of theta--> impose the condition -----------------------------------------------------------
+norm_theta_simul<-apply(X = Shape_for_analyse,MARGIN = 1,
+                         FUN = calcul_norm_L2)
 par(mfrow=c(1,1))
 plot(density(norm_theta_simul),
      main=expression(paste0("Density of the L2 norm of ",theta," simulated")))
 abline(v=1,col="red")
-write.csv(file=paste0("residuals/ACP_results/Theta_Vine_simul_",name_variable,".csv"),x=coord_for_analyse)
-write.csv(file=paste0("residuals/ACP_results/evolution_eigen_value_",name_variable,".csv"),x=val_lambda)
+write.csv(file=paste0("residuals/PCA_results/Theta_Vine_simul_",name_variable,".csv"),x=coord_for_analyse)
+write.csv(file=paste0("residuals/PCA_results/evolution_eigen_value_",name_variable,".csv"),x=val_lambda)
 ```
-
 
 ```{r}
 if(std_data==TRUE){
-    Angle_realisations_std<-scale(Angle_realisations,center = esp_time,
-                                  scale = sd_time)
-    Conversion_realisations<-Angle_realisations_std%*%F_eigen[,c(1:NB_dim_ACP)]
+    Angle_realisations_std<-scale(Angle_realisations,center = esp_time,scale = sd_time)
+    Conversion_realisations<-Angle_realisations_std%*%F_eigen[,c(1:NB_dim_PCA)]
 }else{
-  Conversion_realisations<-Angle_realisations%*%F_eigen[,c(1:NB_dim_ACP)]
+    Conversion_realisations<-Angle_realisations%*%F_eigen[,c(1:NB_dim_PCA)]
   
 }
-matrix_test_nulles<-matrix(nrow=2,ncol=2*NB_dim_ACP)
+matrix_test_nulles<-matrix(nrow=2,ncol=2*NB_dim_PCA)
 Z<-1
-for(j in c(1:NB_dim_ACP)){
+for(j in c(1:NB_dim_PCA)){
   KS_j<-ks.test(x = Conversion_realisations[,j],
                 y=Coordinates[,j])$p.value
   MW_j<-wilcox.test(x = Conversion_realisations[,j],
@@ -328,55 +373,67 @@ for(j in c(1:NB_dim_ACP)){
   Z<-Z+1
 }
 
-# Export coords pour scale Pareto ---------------------------------------
-write.csv(file=paste0("residuals/ACP_results/",name_variable,"_coords_obs.csv"),x=Coordinates)
-write.csv(file=paste0("residuals/ACP_results/",name_variable,"_coords_simul.csv"),x=Conversion_realisations)
-Pre_transf<-New_obs_P_acp
-if(opt_Frech==TRUE){
-  Unif<-exp((-1)*New_obs_P_acp^(-1))
-  New_obs_P_acp<-(1-Unif)^(-1)
-}
 
 ```
+
+```{r}
+# Export coords for the data at Pareto scale ---------------------------------------
+write.csv(file=paste0("residuals/PCA_results/",name_variable,"_coords_obs.csv"),x=Coordinates)
+write.csv(file=paste0("residuals/PCA_results/",name_variable,"_coords_simul.csv"),x=Conversion_realisations)
+Pre_transf<-New_obs_P_PCA
+if(opt_Frech==TRUE){
+  Unif<-exp((-1)*New_obs_P_PCA^(-1))
+  New_obs_P_PCA<-(1-Unif)^(-1)
+}
+```
+
+
 ## 2) Applying the reverse marginal transformation
 ```{r}
-NO_ACP<-lapply(indexes_ACP,FUN = fnct_select_colonne,df=New_obs_P_acp)
+NO_PCA<-lapply(indexes_PCA,FUN = fnct_select_colonne,df=New_obs_P_PCA)
 
 # Reconversion in the correct scale. --------------------------------------
-Variables_reconversion_ACP<-parLapply(cl =CPU_hearts,NO_ACP,function_reconversion_Pareto,K=K,list_evt=L_EVT)
-Variables_reconversion_ACP<-do.call(rbind.data.frame,
-                                    Variables_reconversion_ACP)
+Variables_reconversion_PCA<-parLapply(cl =CPU_hearts,NO_PCA,function_reconversion_Pareto,K=K,list_evt=L_EVT)
+Variables_reconversion_PCA<-do.call(rbind.data.frame,
+                                    Variables_reconversion_PCA)
 
-colnames(Variables_reconversion_ACP)<-1:ncol(Variables_reconversion_ACP)
-# 
-# Coordinates initial scale--------------------------------------------
+colnames(Variables_reconversion_PCA)<-1:ncol(Variables_reconversion_PCA)
+
+```
+
+```{r}
+# Coordinates in the initial scale--------------------------------------------
 L2_X<-apply(X = Data[Inds_Exts,],FUN=calcul_norm_L2,MARGIN=1)
 Comp_ANG_X<-t(t(Data[Inds_Exts,])%*%diag(L2_X^(-1)))
-PCA_X<-PCA(X =Comp_ANG_X,scale.unit =std_data,ncp =NB_dim_ACP,graph = FALSE)
-Coords_data_X<-PCA_X$ind$coord[,c(1:NB_dim_ACP)]
+PCA_X<-PCA(X =Comp_ANG_X,scale.unit =std_data,ncp =NB_dim_PCA,graph = FALSE)
+Coords_data_X<-PCA_X$ind$coord[,c(1:NB_dim_PCA)]
 
-L2_realisations<-apply(X=Variables_reconversion_ACP,FUN=calcul_norm_L2,MARGIN=1)
-Comp_ANG_Xsimul<-t(t(Variables_reconversion_ACP)%*%diag(L2_realisations^(-1)))
+L2_realisations<-apply(X=Variables_reconversion_PCA,FUN=calcul_norm_L2,MARGIN=1)
+Comp_ANG_Xsimul<-t(t(Variables_reconversion_PCA)%*%diag(L2_realisations^(-1)))
 if(std_data==TRUE){
   sdX_time<-apply(X = Comp_ANG_X,MARGIN = 2,FUN = sd)
   espX_time<-colMeans(Comp_ANG_X)
   Comp_ANG_Xsimul<-scale(Comp_ANG_Xsimul,center = espX_time,scale = sdX_time)
 }
-Coords_simul_X<-Comp_ANG_Xsimul%*%(PCA_X$svd$V[,c(1:NB_dim_ACP)])
-for(z in c(1:NB_dim_ACP)){
+Coords_simul_X<-Comp_ANG_Xsimul%*%(PCA_X$svd$V[,c(1:NB_dim_PCA)])
+for(z in c(1:NB_dim_PCA)){
   KS_j<-ks.test(x = Coords_simul_X[,z],y=Coords_data_X[,z])$p.value
   MW_j<-wilcox.test(x = Coords_simul_X[,z],y=Coords_data_X[,z])$p.value
   matrix_test_nulles[,Z]<-c(KS_j,MW_j)
   Z<-Z+1
 }
+```
+
+
+```{r}
+# Export of the simulations of residuals --------------------------------------------
+Std<-ifelse(std_data,"with_std","without_std")
+write.csv(file=paste0("residuals/Simulations_",name_variable,"_",Std,".csv"),x = Variables_reconversion_PCA)
 
 ```
 
 ```{r}
-# Export of resid simulations --------------------------------------------
-Std<-ifelse(std_data,"with_std","without_std")
-write.csv(file=paste0("residuals/Simulations_",name_variable,"_",Std,".csv"),x = Variables_reconversion_ACP)
-# Downloading indexes of extreme individuals-------------
+# Exporting indexes of extreme individuals-------------
 Data_ext<-Data[Inds_Exts,]
 Inds_Exts_mat<-cbind(Inds_Exts,c(1:length(Inds_Exts)))
 write.csv(Inds_Exts_mat,file = paste0("residuals/inds_extremes_data_",name_variable,".csv"))
