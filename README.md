@@ -10,4 +10,4 @@ Our main contributions are the following:
 
 To run the codes, first run [Detrending_Season](./Detrending_Season.Rmd) for detrending the time series (S) then run [Whitening](./Whitening.Rmd) for whitening them. Finally, using the residuals [S_residuals](./residuals/S_residuals.csv), run [Simul_ext_Residuals](./Simul_ext_Residuals.Rmd) and [Simul_Ext_Surge](./Simul_Ext_Surge.Rmd) for simulating respectively extreme residuals and extreme time series of interest. 
 
-All details of the methods are provided in [Gorse et al. (2025)](ajout du lien vers le preprint!!). The methods are applied to [surge data](./Data_Surge.csv) of Gavres site (French Atlantic coast). If you use this dataset, please refer to [Idier et al. (2020)](https://link.springer.com/article/10.1007/s11069-020-03882-4).
+All details of the methods are provided in [Gorse et al. (2025)](https://arxiv.org/abs/2508.13687). The methods are applied to [surge data](./Data_Surge.csv) of Gavres site (French Atlantic coast). If you use this dataset, please refer to [Idier et al. (2020)](https://link.springer.com/article/10.1007/s11069-020-03882-4).
