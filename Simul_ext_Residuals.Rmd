@@ -170,52 +170,31 @@ values_unif<-runif(M)
 reals_P_std<-sapply(values_unif,Generation_Pareto_std)
 COEFF<-reals_P_std*v_threshd
 
-### Code for bivariate vectors.
-
 if(NB_dim_PCA==2){
+  ### Code for bivariate vectors.
   Family_chosen<-BiCopSelect(dataUnif[,1],dataUnif[,2])
   Realisations_copulas<-BiCopSim(N=M,family =Family_chosen$family,par = Family_chosen$par,par2 =Family_chosen$par2,check.pars = TRUE)
   Summary_cop<-summary(Family_chosen)
   
-  Short_famille_name<-BiCopName(family = Summary_cop[["family"]],short=TRUE)
-  elt<-c(Summary_cop[["familyname"]],Summary_cop[["par"]],Summary_cop[["par2"]],Summary_cop[["tau"]],Summary_cop[["beta"]],unlist(Summary_cop[["taildep"]]))
-  L<-length(elt)
-  elt<-as.data.frame(t(elt))
-  colnames(elt)<-c("name","par","par2","tau","beta","ltd","uptd")
-  elt[,c("par","par2","tau","beta","ltd","uptd")]<-round(as.numeric(elt[,c("par","par2","tau","beta","ltd","uptd")]),1)
-  write.csv(elt,file = paste0("residuals/",name_variable,"_coords_UV_copulas.csv"),
-           row.names = FALSE)
+}else{
+  # Vine copula to model the coordinate law for J>2
+  matrix_C<-function_Structure_Matrix(NB_dim = NB_dim_PCA)
+  Family_chosen<-VineCopula::RVineCopSelect(dataUnif[,c(1:NB_dim_PCA)],Matrix = matrix_C)
+  Code_used<-summary(Family_chosen)$family
+  Summary_cop<-summary(Family_chosen)
+  write.csv(x = Code_used,file =paste0("residuals/PCA_results/",name_variable,"_modele_Vine.txt"))
+  Realisations_copulas<-VineCopula::RVineSim(N=M,RVM = Family_chosen) 
 }
-  
+
 ```
 
 ```{r}
-# Vine copula to model the coordinate law for J>2
-if(NB_dim_PCA>2){
-matrix_C<-function_Structure_Matrix(NB_dim = NB_dim_PCA)
-Family_chosen<-VineCopula::RVineCopSelect(dataUnif[,c(1:NB_dim_PCA)],Matrix = matrix_C)
-
-Code_used<-summary(Family_chosen)$family
-write.csv(x = Code_used,
-          file =paste0("residuals/PCA_results/",name_variable,"_modele_Vine.txt"))
-
-Realisations_copulas<-VineCopula::RVineSim(N=M,RVM = Family_chosen) 
-obj_family<-summary(Family_chosen)
-obj_family$par<-ifelse(obj_family$cop=="I",NA,obj_family$par)
-obj_family$par2<-ifelse(obj_family$cop=="I",NA,obj_family$par2)
-obj_family$utd<-ifelse(obj_family$cop %in% c("I","BB8_90","Tawn2_90","BB8","J270","J90","F"),NA,
-                        obj_family$utd)
-obj_family$ltd<-ifelse(obj_family$cop %in% c("I","BB8_90","Tawn2_90","BB8","J270","J90","F","Tawn","J","Tawn2","SC"),NA,obj_family$ltd)
-
-obj_family$family<-BiCopName(obj_family$family,short = FALSE)
-dim_variable<-ncol(obj_family)
-
-obj_family<-obj_family[,c(1:3,5:dim_variable)]
-colnames(obj_family)[c(1:3)]<-c("tree","couples-cond","name-copula")
-obj_family[,c("par","par2","tau","utd","ltd")]<-round(obj_family[,c("par","par2","tau","utd","ltd")],1)
-write.csv(obj_family,file = paste0("residuals/",name_variable,"_coords_UV_copulas.csv"))
-}
+## Export the copula model used.
+Export_copula_model(NB_dim_PCA = NB_dim_PCA,
+                      name_variable =name_variable ,
+                      Summary_cop = Summary_cop)  
 ```
+
 
 ```{r}
 # Comparing simulations from the copula model with data coordinates (first dimensions)

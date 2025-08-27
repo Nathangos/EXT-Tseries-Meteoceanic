@@ -141,4 +141,30 @@ sigma_BESSEL<-function(s,kappa,tau){
   h_norme<-abs(s/tau)
   return(kappa*(1-h_norme))
 }
-
+Export_copula_model<-function(NB_dim_PCA,name_variable,Summary_cop){
+  if(NB_dim_PCA==2){
+    Short_famille_name<-BiCopName(family = Summary_cop[["family"]],short=TRUE)
+    elt<-c(Summary_cop[["familyname"]],Summary_cop[["par"]],Summary_cop[["par2"]],Summary_cop[["tau"]],Summary_cop[["beta"]],unlist(Summary_cop[["taildep"]]))
+    L<-length(elt)
+    elt<-as.data.frame(t(elt))
+    colnames(elt)<-c("name","par","par2","tau","beta","ltd","uptd")
+    elt[,c("par","par2","tau","beta","ltd","uptd")]<-round(as.numeric(elt[,c("par","par2","tau","beta","ltd","uptd")]),1)
+    write.csv(elt,file = paste0("residuals/",name_variable,"_coords_UV_copulas.csv"),
+              row.names = FALSE)
+  }else{
+    Summary_cop$par<-ifelse(Summary_cop$cop=="I",NA,
+                            Summary_cop$par)
+    Summary_cop$par2<-ifelse(Summary_cop$cop=="I",NA,Summary_cop$par2)
+    Summary_cop$utd<-ifelse(Summary_cop$cop %in% c("I","BB8_90","Tawn2_90","BB8","J270","J90","F"),NA,
+                            Summary_cop$utd)
+    Summary_cop$ltd<-ifelse(Summary_cop$cop %in% c("I","BB8_90","Tawn2_90","BB8","J270","J90","F","Tawn","J","Tawn2","SC"),NA,Summary_cop$ltd)
+    
+    Summary_cop$family<-BiCopName(Summary_cop$family,short = FALSE)
+    dim_variable<-ncol(Summary_cop)
+    
+    Summary_cop<-Summary_cop[,c(1:3,5:dim_variable)]
+    colnames(Summary_cop)[c(1:3)]<-c("tree","couples-cond","name-copula")
+    Summary_cop[,c("par","par2","tau","utd","ltd")]<-round(Summary_cop[,c("par","par2","tau","utd","ltd")],1)
+    write.csv(Summary_cop,file = paste0("residuals/",name_variable,"_coords_UV_copulas.csv"))
+  }
+}
