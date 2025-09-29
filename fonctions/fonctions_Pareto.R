@@ -1,5 +1,3 @@
-#source("../fonctions/fonctions.R")
-
 #' f_marginales_Pareto
 #'
 #' @param variable : vector. Realisations of the law at time t
@@ -124,23 +122,6 @@ function_reconv_each_dim_Pareto<-function(index_dimension,K,v_diff,list_evt){
   }
 }
 
-
-pi_s_t<-function(individus_fonctionnel,vecteur_u,couples_indices){
-  t<-couples_indices[1]
-  s<-couples_indices[2]
-  numerateur<-sum(as.numeric((individus_fonctionnel[,s]>vecteur_u[s])&(individus_fonctionnel[,t]>vecteur_u[t])))
-  denominateur<-sum(as.numeric(individus_fonctionnel[,s]>vecteur_u[s]))
-  return(numerateur/denominateur)
-}
-variogramme_BESSEL<-function(t,s,kappa,tau){
-  h<-t-s
-  h_norme<-abs(h/tau)
-  return(kappa*(1-h_norme))
-}
-sigma_BESSEL<-function(s,kappa,tau){
-  h_norme<-abs(s/tau)
-  return(kappa*(1-h_norme))
-}
 Export_copula_model<-function(NB_dim_PCA,name_variable,Summary_cop){
   if(NB_dim_PCA==2){
     Short_famille_name<-BiCopName(family = Summary_cop[["family"]],short=TRUE)
