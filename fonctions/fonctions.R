@@ -684,7 +684,6 @@ Analyse_extreme_proj<-function(base_RV,nb_scores,stand_,nom_variable,L,NB_year,M
   par(mfrow=c(1,1))
 }
 
-
 #' Graphics_estimators_gamma
 #'
 #' @param series : vector(float). Variable studied.
@@ -698,7 +697,9 @@ Analyse_extreme_proj<-function(base_RV,nb_scores,stand_,nom_variable,L,NB_year,M
 #' @export
 #'
 #' @examples
-Graphics_estimators_gamma<-function(series,vect_k,Title_graphic,NB_years=NULL){
+Graphics_estimators_gamma<-function(series,vect_k,Title_graphic,NB_years=NULL,
+                                    dims_elt_text=c(14,11,
+                                                    10,10)){
   
   NPY<-length(series)/NB_years
   TUNITS<-paste0(NPY,"/year")
@@ -720,14 +721,15 @@ Graphics_estimators_gamma<-function(series,vect_k,Title_graphic,NB_years=NULL){
     geom_line()+
     ylab(expression(gamma))+
     xlab("Number of exceedances")+
-    theme(axis.title=element_text(size=15),
-          legend.text=element_text(size=10))+
-    labs(linetype="Legend",
-         caption=paste0("k going from ",min(vect_k)," to ",max(vect_k)))+
+    theme(axis.title=element_text(size=dims_elt_text[1]),
+          legend.title = element_text(size=dims_elt_text[2]),
+          legend.text=element_text(size=dims_elt_text[3]),
+          axis.text=element_text(size=dims_elt_text[4]))+
+    labs(linetype="Legend")+
     guides(colour="none")+
-    ggtitle(Title_graphic)+
-    theme(plot.caption = element_text(size = 10))
+    ggtitle(Title_graphic)
   #
+  #caption=paste0("k going from ",min(vect_k)," to ",max(vect_k))
   print(GGothers)
 }
 
