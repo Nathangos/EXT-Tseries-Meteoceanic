@@ -1314,13 +1314,16 @@ Resamples_tendencies<-function(extremes_indus,B,list_Q){
 
 # Short-cut for graphics using the scores/variance ------------------------
 
-function_expression_prop_variance_j<-function(j,prop_variance){
-  first_object<-expression(C[j])
-  first_object<-do.call("substitute", 
-                        list(first_object[[1]], list(j = j)))
-  expr_j<-expression(first_object~" ("~prop1~"% of the variance)")
-  return_obj<-do.call("substitute", 
-                      list(expr_j[[1]], list(prop1 = prop_variance[j],
-                                             first_object=first_object)))
-  return(return_obj)
+function_expression_prop_variance_j <- function(j, prop_variance, term="C") {
+  # Convert term to a symbol to allow Greek letters like xi, beta, etc.
+  term_symbol <- as.symbol(term)
+  
+  # Build the expression for the Greek letter with subscript j
+  first_object <- substitute(term_symbol[j], list(term_symbol = term_symbol, j = j))
+  
+  # Create the final expression with the percentage variance
+  expr_j <- substitute(expr ~ " (" ~ prop1 ~ "% of the variance)", 
+                       list(expr = first_object, prop1 = prop_variance[j]))
+  
+  return(expr_j)
 }
