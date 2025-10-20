@@ -35,13 +35,10 @@ clusterExport(CPU_hearts,varlist=F_names)
 
 
 ```{r}
-name_variable<-"Surcote"
+name_variable<-"Surge"
 name_recherche<-paste0("data_detrend_Winter/",name_variable,"_detrend.csv")
 Data<-read.csv(name_recherche)[,c(2:38)]
 colnames(Data)<-c(1:37)
-if(name_variable=="Surcote"){
-  name_variable<-"S"
-}
 ```
 
 ```{r}
@@ -139,7 +136,8 @@ title<-paste0("result obtained with (p=",P,", d=",D,", q=",Q,") at each Time")
 par(mfrow=c(1,2))
 # Analyse at each time ---------------------------------------------------
 par(mfrow=c(1,1))
-write.csv(x =Data_new,file ="residuals/S_residuals.csv")
+write.csv(x =Data_new,file =paste0("residuals/",name_variable,
+                                   "_residuals.csv"))
 ```
 
 ```{r}

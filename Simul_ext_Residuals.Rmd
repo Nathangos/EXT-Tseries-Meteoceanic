@@ -38,8 +38,8 @@ clusterExport(CPU_hearts,varlist=F_names)
 
 
 ```{r}
-name_variable<-"Surcote"
-link_data<-paste0("residuals/S_residuals.csv")
+name_variable<-"Surge"
+link_data<-paste0("residuals/",name_variable,"_residuals.csv")
 std_data<-TRUE
 p_U<-rep(0.10,37)
 p_L2<-0.05
