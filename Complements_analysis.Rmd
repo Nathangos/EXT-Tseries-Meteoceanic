@@ -23,11 +23,10 @@ require(kdecopula)
 # -------------------
 cols_<-c("data"="blue","simulations"="orange","confidence_band"="darkblue")
 
+Name_v<-"Surge"
+Nom_present<-ifelse(Name_v=="Surcote","Surge",Name_v)
 
-Nom_v<-"Surcote"
-Nom_present<-ifelse(Nom_v=="Surcote","Surge",Nom_v)
-
-inds_extremes<-paste0("residuals/inds_extremes_data_",Nom_v,".csv")
+inds_extremes<-paste0("residuals/inds_extremes_data_",Name_v,".csv")
 Modele<-"ACP"
 ```
 
@@ -36,7 +35,7 @@ Modele<-"ACP"
 # Importing the simulations 
 #--------------------------------------
 if(Modele=="ACP"){
-  simulations<-read.csv(file = paste0("residuals/Simulations_",Nom_v,"_with_std.csv"))
+  simulations<-read.csv(file = paste0("residuals/Simulations_",Name_v,"_with_std.csv"))
 }
 
 simulations<-simulations[,c(2:ncol(simulations))]
@@ -53,7 +52,7 @@ colnames(M)<-c("Temps","Individu","valeur")
 ```
 
 ```{r}
-lien_DF<-paste0("Work_RVariations/EVA_",Nom_v,"_residus.csv")
+lien_DF<-paste0("Work_RVariations/EVA_",Name_v,".csv")
 DF<-read.csv(lien_DF)
 Dates<-read.csv(file="data_detrend_Winter/dates.csv")[,2]
 d_POIXCT<-as.POSIXct(Dates, format="%d/%m/%Y")
@@ -64,13 +63,13 @@ d_POIXCT<-as.POSIXct(Dates, format="%d/%m/%Y")
 # Comparing data and simulated residuals ---------------------------------------------
 ############
 Individus_exts<-read.csv(inds_extremes)[,2]
-Residus_donnees<-read.csv(file=paste0("residuals/S_residuals.csv"))[,c(2:38)]
+Residus_donnees<-read.csv(file=paste0("residuals/",Name_v,"_residuals.csv"))[,c(2:38)]
 colnames(Residus_donnees)<-c(1:ncol(Residus_donnees))
 
 # Diagnostic POTS ---------------------------------------------------------
 t<-19
-Nom_g<-ifelse(Nom_v=="Surcote","S",
-              Nom_v)
+Nom_g<-ifelse(Name_v=="Surcote","S",
+              Name_v)
 Outils_POT_graphique(seuil = DF$seuil_t[t],Q1 = 0.50,
                      Q2 = 0.98,series =Residus_donnees[,t],
                      dates = Dates,
@@ -86,7 +85,7 @@ Min_u<-quantile(series_t,Q1)
 Max_u<-quantile(series_t,Q2)
 
 POT::mrlplot(data = series_t,u.range = c(Min_u,Max_u),
-             main=paste0("Mean residual life plot pour ",Nom_v," en t=",t))
+             main=paste0("Mean residual life plot pour ",Name_v," en t=",t))
 abline(v=Seuil,col="red")
 
 par(mfrow=c(1,2))
@@ -95,7 +94,7 @@ abline(v=Seuil,col="red")
 POT::tcplot(series_t,ask = FALSE,which = 2,u.range = c(Min_u,Max_u))
 abline(v=Seuil,col="red")
 par(mfrow=c(1,1))
-mtext(paste0("Tcplot pour ",Nom_v," en t=",t),outer=TRUE,line = -2,
+mtext(paste0("Tcplot pour ",Name_v," en t=",t),outer=TRUE,line = -2,
       cex=1.3)
 ```
 ```{r}
@@ -165,7 +164,7 @@ colnames(resultat_d)<-c("quantite","temps","valeur")
 ggplot(data=Percentiles_d_simul,aes(x=temps,y=valeur,col=type))+
   geom_line()+
   facet_wrap(~quantite)+
-  ggtitle(paste0("Percentiles data vs simulations for ",Nom_v," (residuals)"))+
+  ggtitle(paste0("Percentiles data vs simulations for ",Name_v," (residuals)"))+
   labs(caption = paste0("number_simulations=",nrow(simulations),", number_obs=",length(Individus_exts)))
 
 ```
@@ -176,7 +175,7 @@ R_mu_sd$type<-c(rep("simulations",nrow(resultat_d)),rep("data",nrow(resultat_d))
 ggplot(data=R_mu_sd,aes(x=temps,y=valeur,col=type))+
   geom_line()+
   facet_wrap(~quantite,scales = "free_y")+
-  ggtitle(paste0("Moments data vs simuls for ",Nom_v," (résiduals)"))+
+  ggtitle(paste0("Moments data vs simuls for ",Name_v," (residuals)"))+
   labs(caption = paste0("number_simulations=",nrow(simulations),", number_inds=",length(Individus_exts)))
 ```
 
@@ -200,13 +199,13 @@ Coor_lien_real<-estim_Pearson_tidal_cycle(Matrice_couples = Matrice_couples,indi
 Coor_lien_simul<-estim_Pearson_tidal_cycle(Matrice_couples = Matrice_couples,individus_select = simulations,type_corr ="pearson")
 df_coor_lien<-cbind.data.frame(Coor_lien_real,Coor_lien_simul,
                                vecteur_distances)
-colnames(df_coor_lien)<-c("valeur_simulation","valeur_donnees",
+colnames(df_coor_lien)<-c("value_data","value_simul",
                           "delta")
-resultat_corr<-df_coor_lien %>% group_by(delta) %>% summarise(val_donnees=mean(valeur_donnees),
-                                                     val_simul=mean(valeur_simulation))
+resultat_corr<-df_coor_lien %>% group_by(delta) %>% summarise(val_data=mean(value_data),
+                     val_simul=mean(value_simul))
 ggplot(data=resultat_corr,aes(x=delta,y=val_simul,col="simulations"))+
   geom_point()+
-  geom_point(aes(y=val_donnees,col="data"))+
+  geom_point(aes(y=val_data,col="data"))+
   scale_color_manual(values = cols_)+
   ggtitle(paste0("Simul vs data for the correlation ", type_corr))+
   ylab("value")+xlab("Lag_h")
@@ -234,7 +233,7 @@ Extremogram_simul<-empirical_extremogram(Matrix_couples=Matrice_couples,inds_sel
 df<-cbind.data.frame(Extremogram_simul,Extremogram_donnees,vecteur_distances)
 colnames(df)<-c("value_simulation","value_data","delta")
 
-resultat_delta<-df %>% group_by(delta) %>% summarise(val_donnees=mean(value_data),
+resultat_delta<-df %>% group_by(delta) %>% summarise(val_data=mean(value_data),
                                                   val_simul=mean(value_simulation))
 
 
@@ -251,14 +250,14 @@ Q05<-fnct_quantile(x = t(Resultat),q=0.05)
 Q95<-fnct_quantile(x = t(Resultat),q=0.95)
 resultat_delta$bound_inf<-Q05
 resultat_delta$bound_sup<-Q95
-travail_extremo<-as.data.frame(resultat_delta[,c("val_donnees","val_simul","bound_inf","bound_sup")])
+travail_extremo<-as.data.frame(resultat_delta[,c("val_data","val_simul","bound_inf","bound_sup")])
 travail_extremo$Temps<-c(1:nrow(travail_extremo))
 ```
 
 
 ```{r}
 # print result
-GG_extremo<-ggplot(travail_extremo,aes(x=Temps,y=val_donnees,col="data"))+
+GG_extremo<-ggplot(travail_extremo,aes(x=Temps,y=val_data,col="data"))+
   geom_line()+
   geom_point()+
   geom_line(aes(y=val_simul,col="simulations"))+
@@ -266,7 +265,7 @@ GG_extremo<-ggplot(travail_extremo,aes(x=Temps,y=val_donnees,col="data"))+
   geom_ribbon(mapping = aes(ymin=bound_inf,ymax=bound_sup,col="confidence_band"),alpha=0.15,
               fill="grey", linetype = "dashed")+
   scale_color_manual(values=cols_)+
-  ggtitle(paste0("Estimated extremogram for ",Nom_v," (residual) with resampling"))+
+  ggtitle(paste0("Estimated extremogram for ",Name_v," (residual) with resampling"))+
   labs(caption=paste0("Nb_samples=",500,", Size sample=",130,
                       ", quantile_q=",0.90),
        col="Legend")
@@ -286,7 +285,7 @@ Lims<-c(quantile(df_norm$obs,0.50),
         quantile(df_norm$obs,0.98))
 POT::tcplot(data = NL2_observations,u.range = Lims)
 POT::mrlplot(data = NL2_observations,u.range=Lims)
-POT::diplot(data = df_norm,u.range = Lims,nt=300,main = paste0("Analyse diplot norm de ",Nom_v))
+POT::diplot(data = df_norm,u.range = Lims,nt=300,main = paste0("Analyse diplot norm de ",Name_v))
 abline(h=1,col="red")
 mtext("test",outer=TRUE,line=-1)
 par(mfrow=c(1,1))
@@ -296,7 +295,7 @@ par(mfrow=c(1,1))
 ```{r}
 # Pareto ------------------------------------------------------------------
 
-Pareto_obs<-read.csv(file=paste0("residuals/Pareto/",Nom_v,"_obs_ech_Pareto.csv"))[,c(2:38)]
+Pareto_obs<-read.csv(file=paste0("residuals/Pareto/",Name_v,"_obs_ech_Pareto.csv"))[,c(2:38)]
 colnames(Pareto_obs)<-c(1:ncol(Pareto_obs))
 
 # L2_Pareto ---------------------------------------------------------------
@@ -314,7 +313,7 @@ Outils_POT_graphique(seuil =Mu,
 ```{r}
 # effect of marginal transformation on shape parameter
 vect_k<-c(20:600)
-Nom_graph<-ifelse(Nom_v=="Surcote","S",Nom_v)
+Nom_graph<-ifelse(Name_v=="Surcote","S",Name_v)
 TITLE_graph<-paste0("Shape parameter T(",Nom_graph,")'s L2 norm (residual)")
 
 L2_orig<-apply(X = Residus_donnees,MARGIN = 1,FUN = calcul_norm_L2)
@@ -337,7 +336,7 @@ GG_ext2<-Graphics_estimators_gamma(series = L2_PTO,
 require(patchwork)
 All_exts<-GG_ext1+GG_ext2
 All_exts
-ggsave(filename ="Graphics/Shape_parameter_S_TS.png",plot = All_exts,width = 12,height = 5)
+ggsave(filename =paste0("Graphics/Shape_parameter_",Name_v,"_TS.png"),plot = All_exts,width = 12,height = 5)
 ```
 
 
@@ -350,9 +349,8 @@ Tau<-apply(X = Pareto_obs,MARGIN = 2,FUN = function(x){quantile(x,0.95)})
 Extremo_<-empirical_extremogram(Matrix_couples=Matrice_couples,
                       inds_select =Pareto_obs[Individus_exts,],
                       Tau = Tau)
-vecteur_distances
 df<-cbind.data.frame(Extremo_,vecteur_distances)
-colnames(df)<-c("val_donnees","delta")
+colnames(df)<-c("val_data","delta")
 
 SS_ech_gnal<-sample(c(1:nrow(Residus_donnees)),size = 20)
 Echs<-melt(t(Residus_donnees[SS_ech_gnal,]))
@@ -384,7 +382,7 @@ ggplot(Echs,aes(x=Time,y=value,col=individual,
 ```{r}
 # Import the observed time series in the Pareto scale
 # -----------------------------
-Pareto_simul<-read.csv(file=paste0("residuals/Pareto/",Nom_v,"_simul_Pareto.csv"))
+Pareto_simul<-read.csv(file=paste0("residuals/Pareto/",Name_v,"_simul_Pareto.csv"))
 Pareto_simul<-Pareto_simul[,c(2:38)]
 Resultat_FONCTION<-apply(Pareto_simul,MARGIN = 2,FUN = function(x){
   return(extRemes::pevd(q = x,threshold = 1,scale = 1,
@@ -408,7 +406,7 @@ repres_Orig$mean<-Mean_orig[repres_Orig$Time]
 repres_Orig$Q05<-Q05_orig[repres_Orig$Time]
 repres_Orig$individual<-as.character(repres_Orig$individual)
 repres_Orig$Time<-(repres_Orig$Time-19)/6
-titre_orig<-expression("Sampling of 20 extremes observations of "~epsilon[M]~" for "~Nom_v)
+titre_orig<-expression("Sampling of 20 extremes observations of "~epsilon[M]~" for "~Name_v)
 
 ```
 
@@ -436,8 +434,7 @@ colnames(repres_Pareto)<-c("Time",
                        "individual", 
                        "value")
 repres_Pareto$individual<-as.character(repres_Pareto$individual)
-titre<-expression("Sampling of 20 extremes observations of T("~epsilon[M]~") for "~Nom_v)
-Nom_present<-ifelse(Nom_v=="Surcote","Surge",Nom_v)
+titre<-expression("Sampling of 20 extremes observations of T("~epsilon[M]~") for "~Name_v)
 Q95<-apply(Pareto_obs[Individus_exts,],MARGIN = 2,FUN = function(x){return(quantile(x,0.95))})
 Q05<-apply(Pareto_obs[Individus_exts,],MARGIN = 2,FUN = function(x){return(quantile(x,0.05))})
 Mean_Pareto<-colMeans(Pareto_obs[Individus_exts,])
@@ -455,7 +452,7 @@ GG_Pareto<-ggplot(repres_Pareto,aes(x=Time,y=value,col=individual,
   geom_line(aes(y=mean,linetype="mean"),col="red")+
   geom_line(alpha=0.7)+
   guides(col="none")+
-  ylab(paste0("T(",Nom_present,") (-)"))+
+  ylab(paste0("T(",Name_v,") (-)"))+
   theme(axis.title=element_text(size=25),
         legend.text=element_text(size=14),
         legend.title = element_text(size=15),
@@ -470,7 +467,7 @@ combined<-(GG_orig|GG_Pareto)
 require(patchwork)
 All_orig_ext<-patchwork::wrap_elements(full = combined) / patchwork::wrap_elements(shared_xlab) +
   plot_layout(heights = c(1, 0.05))
-ggsave("Graphics/exs_S.png",
+ggsave(paste0("Graphics/exs_",Name_v,".png"),
        plot = All_orig_ext,
        width=12,
        height=7)
@@ -514,7 +511,7 @@ liste_indep_Angle_orig
 
 ```{r}
 # ech pareto --------------------------------------------------------------
-coords_donnees_Pareto<-read.csv(file=paste0("residuals/PCA_results/",Nom_v,"_coords_obs.csv"))
+coords_donnees_Pareto<-read.csv(file=paste0("residuals/PCA_results/",Name_v,"_coords_obs.csv"))
 coords_donnees_Pareto<-coords_donnees_Pareto[,-1]
 
 # Dependence between coordinates ------------------------------------------
@@ -564,13 +561,12 @@ liste_indep_Angle_orig
 
 ```{r}
 # Analyse scores ----------------------------------------------------------
-nom_present<-ifelse(Nom_v=="Surcote","S",Nom_v)
-nom_fichier<-paste0("residuals/PCA_results/Theta_coords_ACP_",Nom_v,".csv")
-nom_fichier
-nom_fi_simul<-paste0("residuals/PCA_results/Theta_Vine_simul_",Nom_v,".csv")
-resultat_obs<-read.csv(nom_fichier)[,-1]
+nom_present<-ifelse(Name_v=="Surcote","S",Name_v)
+name_file<-paste0("residuals/PCA_results/Theta_coords_PCA_",Name_v,".csv")
+name_file_simul<-paste0("residuals/PCA_results/Theta_Vine_simul_",Name_v,".csv")
+resultat_obs<-read.csv(name_file)[,-1]
 
-resultat_simul<-read.csv(nom_fi_simul)[,-1]
+resultat_simul<-read.csv(name_file_simul)[,-1]
 colnames(resultat_obs)<-paste0("C_",seq.int(from = 1,to = ncol(resultat_obs)))
 colnames(resultat_simul)<-colnames(resultat_obs)
 ks.test(resultat_obs[,1],resultat_simul[,1])
@@ -580,7 +576,7 @@ ks.test(resultat_obs[,3],resultat_simul[,3])
 ```{r}
 # Compare data and simulated coordinated
 # a) Import inertia ----------------------------------------------------------
-Table_inertia<-read.csv(paste0("residuals/PCA_results/evolution_eigen_value_",Nom_v,".csv"))
+Table_inertia<-read.csv(paste0("residuals/PCA_results/evolution_eigen_value_",Name_v,".csv"))
 Prop_inertia<-round(Table_inertia[,2]/sum(Table_inertia[,2]),2)*100
 resultat_sample<-as.data.frame(matrix(runif(n = dim(resultat_simul)[1]*dim(resultat_simul)[2]),
                         nrow = dim(resultat_simul)[1],ncol=dim(resultat_simul)[2]))
@@ -686,7 +682,7 @@ top_row<-(GG1 + GG2)
 Second_row<-plot_spacer() + GG3 + plot_spacer()+ 
   plot_layout(widths = c(0.5, 1,0.5))
 All_PCA_coords<-top_row/Second_row
-ggsave(filename = "Graphics/theta_coords__all.png",
+ggsave(filename = paste0("Graphics/theta_coords",Name_v,"_all.png"),
        plot = All_PCA_coords,
        width = 12,
        height = 9)

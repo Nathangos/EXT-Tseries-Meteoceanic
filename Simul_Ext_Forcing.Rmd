@@ -55,10 +55,9 @@ Simulate_extreme_from_resid<-function(nb_decal,Sample_taken,
 
 ```{r}
 name_variable<-"Surge"
-name_for_file<-ifelse(name_variable=="Surge","S",no = name_variable)
-fich_reg1<-paste0("residuals/",name_for_file,"_Reg_AR1.csv")
+fich_reg1<-paste0("residuals/",name_variable,"_Reg_AR1.csv")
 
-file_Simulation_Residuals<-paste0("residuals/Simulations_",name_variable,"_avec_std.csv")
+file_Simulation_Residuals<-paste0("residuals/Simulations_",name_variable,"_with_std.csv")
 file_idx_extremes<-paste0("inds_extremes_data_",name_variable,".csv")
 dates_Johanna<-c("10/03/2008","08/03/2008", 
                  "09/03/2008")
@@ -104,7 +103,7 @@ par(mfrow=c(1,1))
 # Eventual relation between  epsilon_t and Residuals -------------------------------------------
 number_obs<-nrow(obs)-1
 df_result<-matrix(NA,nrow = 37,ncol = 4)
-DF_EV_resid<-read.csv(file=paste0("Work_RVariations/EVA_",name_variable,"_Residuals.csv"))[,2:5]
+DF_EV_resid<-read.csv(file=paste0("Work_RVariations/EVA_",name_variable,".csv"))[,2:5]
 vect_threshold_GPD<-DF_EV_resid$seuil_t
 
 # Correlation_t=19 --------------------------------------------------------
@@ -542,6 +541,9 @@ if(name_variable=="Hs"){
 }
 if(name_variable=="Surge"){
   Y_graph_lim<-c(0.13,1)
+}
+if(name_variable=="U"){
+  Y_graph_lim<-c(10,30)
 }
 indexs_exts<-read.csv(paste0(file_idx_extremes))[,2]
 p_u<-rep(0.05,ncol(Simul))

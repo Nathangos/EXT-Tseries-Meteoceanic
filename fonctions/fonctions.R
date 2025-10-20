@@ -1112,10 +1112,10 @@ custom_labels <- function(x) {
 
 
 RL_ggplot_cond_ext<-function(series,seuil,period_years,NPY,titre,
-                    nom_variable,plus_simul=FALSE,series_simul=NULL,
+                    name_variable,plus_simul=FALSE,series_simul=NULL,
                     cols_ggplot=NULL,alpha=0.05, 
                     methode_ci="normal",ylim_opt=NULL, 
-                    unit_used,Individus_exts){
+                    unit_used,Individuals_exts){
   rate_exceedance<-round(mean(as.numeric(series>seuil)),2)
   series_extreme<-subset(series,series>seuil)
   modele_ev<-fevd( x =series,threshold = seuil,type="GP",
@@ -1136,7 +1136,7 @@ RL_ggplot_cond_ext<-function(series,seuil,period_years,NPY,titre,
   indice_value_twenty<-which(period_years==20)
   pdf(NULL)
   RL_plot<-plot(modele_ev,type = "rl",
-                main=paste0("Niveau de retour par EVA pour ",nom_variable),
+                main=paste0("Niveau de retour par EVA pour ",name_variable),
                 rperiods=c(period_years))
   dev.off()
   empirique<-RL_plot$empirical
@@ -1164,20 +1164,19 @@ RL_ggplot_cond_ext<-function(series,seuil,period_years,NPY,titre,
     
     # analyse extremes simul --------------------------------------------------
     # with simul
-    series_tronq<-subset(series_simul,series_simul>seuil)
     #with data
-    #series_data_ext<-series[Individus_exts]
+    #series_data_ext<-series[Individuals_exts]
     #series_tronq<-subset(series_data_ext,series_data_ext>seuil)
     # Estimated_quantiles<-sapply(entree,
     #                          fonction_melange_cond,
     #                          series_tronq=series_tronq,
     #                          series=series,seuil=seuil,
-    #                          inds_exts=Individus_exts)
+    #                          inds_exts=Individuals_exts)
     Estimation_probs<-sapply(X = Base$estimateur,
                                cdf_cond_value,
-                               series_tronq=series_tronq,
+                               simul_ext=series_simul,
                                series=series,seuil=seuil,
-                               inds_exts=Individus_exts)
+                               inds_exts=Individuals_exts)
     # Return_obtained_simul ---------------------------------------------------
     C<-NPY*rate_exceedance
     R_simul<-(C*(1-Estimation_probs))^(-1)
@@ -1237,7 +1236,7 @@ RL_ggplot_cond_ext<-function(series,seuil,period_years,NPY,titre,
   print(GG_RL)
   return(list("plot_RL"=RL_plot,"modele_ev"=modele_ev))
 }
-cdf_cond_value<-function(quantile_emp,series_tronq,series,seuil,inds_exts){
+cdf_cond_value<-function(quantile_emp,simul_ext,series,seuil,inds_exts){
   # # inds_exts = extreme time series (L2 norm) --------------------------------
   ## A) probability being above quantile.
   ## B) probability being above threshold.
