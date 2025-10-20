@@ -23,7 +23,7 @@ require(kdecopula)
 # -------------------
 cols_<-c("data"="blue","simulations"="orange","confidence_band"="darkblue")
 
-Name_v<-"Surge"
+Name_v<-"U"
 Nom_present<-ifelse(Name_v=="Surcote","Surge",Name_v)
 
 inds_extremes<-paste0("residuals/inds_extremes_data_",Name_v,".csv")
@@ -682,7 +682,7 @@ top_row<-(GG1 + GG2)
 Second_row<-plot_spacer() + GG3 + plot_spacer()+ 
   plot_layout(widths = c(0.5, 1,0.5))
 All_PCA_coords<-top_row/Second_row
-ggsave(filename = paste0("Graphics/theta_coords",Name_v,"_all.png"),
+ggsave(filename = paste0("Graphics/theta_coords_",Name_v,"_all.png"),
        plot = All_PCA_coords,
        width = 12,
        height = 9)

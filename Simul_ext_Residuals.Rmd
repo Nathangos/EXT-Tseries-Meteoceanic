@@ -44,7 +44,7 @@ link_data<-paste0("residuals/",name_variable,
 std_data<-TRUE
 p_U<-rep(0.10,37)
 p_L2<-0.05
-NB_dim_PCA<-3
+NB_dim_PCA<-5
 opt_Frech<-TRUE
 M<-2000
 n.dens<-2^(14)
