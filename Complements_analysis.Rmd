@@ -23,11 +23,19 @@ require(kdecopula)
 # -------------------
 cols_<-c("data"="blue","simulations"="orange","confidence_band"="darkblue")
 
-Name_v<-"U"
+Name_v<-"Surge"
 Nom_present<-ifelse(Name_v=="Surcote","Surge",Name_v)
 
 inds_extremes<-paste0("residuals/inds_extremes_data_",Name_v,".csv")
 Modele<-"ACP"
+```
+
+```{r}
+### Sub folder for Graphics
+path_graph<-paste0(getwd(),"/Graphics/",Name_v)
+try({
+  dir.create(file.path(path_graph))
+})
 ```
 
 
@@ -266,9 +274,7 @@ GG_extremo<-ggplot(travail_extremo,aes(x=Temps,y=val_data,col="data"))+
               fill="grey", linetype = "dashed")+
   scale_color_manual(values=cols_)+
   ggtitle(paste0("Estimated extremogram for ",Name_v," (residual) with resampling"))+
-  labs(caption=paste0("Nb_samples=",500,", Size sample=",130,
-                      ", quantile_q=",0.90),
-       col="Legend")
+  labs(col="Legend")
 
 print(GG_extremo)
 ```
@@ -336,7 +342,168 @@ GG_ext2<-Graphics_estimators_gamma(series = L2_PTO,
 require(patchwork)
 All_exts<-GG_ext1+GG_ext2
 All_exts
-ggsave(filename =paste0("Graphics/Shape_parameter_",Name_v,"_TS.png"),plot = All_exts,width = 12,height = 5)
+ggsave(filename =paste0(path_graph,"/Shape_parameter_",Name_v,"_TS.png"),plot = All_exts,width = 12,height = 5)
+```
+
+```{r}
+##Pareto_obs vs Pareto simul
+Pareto_simul<-read.csv(file=paste0("residuals/Pareto/",Name_v,"_simul_Pareto.csv"))[,c(2:38)]
+colnames(Pareto_simul)<-c(1:ncol(Pareto_simul))
+L2_simul<-apply(X = Pareto_simul,MARGIN = 1,FUN = calcul_norm_L2)
+```
+
+```{r}
+Pareto_exts<-Pareto_obs[Individus_exts,]
+L2_pto_exts<-L2_PTO[Individus_exts]
+Angle_obs<-t(t(Pareto_exts)%*%diag(L2_pto_exts^(-1)))
+Angle_simul<-t(t(Pareto_simul)%*%diag(L2_simul^(-1)))
+min_theta<-min(min(apply(X = Angle_obs,MARGIN = 2,FUN =min)),
+               min(apply(X = Angle_simul,MARGIN = 2,FUN =min)))
+max_theta<-max(max(apply(X = Angle_obs,MARGIN = 2,FUN =max)),
+               max(apply(X = Angle_simul,MARGIN = 2,FUN =max)))
+```
+
+```{r}
+par(mfrow=c(1,2))
+matplot(t(Angle_obs),ylim=c(min_theta,max_theta),type="l")
+matplot(t(Angle_simul),ylim=c(min_theta,max_theta),type="l")
+par(mfrow=c(1,1))
+```
+```{r}
+### bivariate behaviour of Theta obs versus Theta sim
+t<-15
+s<-19
+pair_UV<-Angle_obs[,c(t,s)]
+pair_UV_sim<-Angle_simul[,c(t,s)]
+```
+
+
+```{r}
+df_combo<-rbind.data.frame(pair_UV,pair_UV_sim)
+colnames(df_combo)<-sapply(X = c(1:ncol(df_combo)),FUN=function(x){
+  return(paste0("V",x))
+})
+df_combo$Legend<-c(rep("data",nrow(pair_UV)),
+                 rep("simulations",nrow(pair_UV_sim)))
+cols_<-c("data"="blue","simulations"="orange","confidence_band"="darkblue")
+
+GG1<-ggplot(data=df_combo,aes(x=V1,y=V2,colour=Legend,shape=Legend),
+)+
+  geom_point(aes(size=Legend))+
+  geom_xsidedensity(data=df_combo,aes(fill=Legend), alpha = 0.5)+
+  geom_ysidedensity(data=df_combo,aes(fill=Legend), alpha = 0.5)+
+  xlab(paste0("Theta_",t))+ylab(paste0("Theta_",s))+
+  scale_color_manual(values=cols_)+
+  scale_fill_manual(values=cols_)+
+  scale_shape_manual(values = c("simulations"=17,"data"=19))+
+  scale_size_manual(values=c("simulations"=0.75,"data"=1.5))+
+  guides(fill="none")+
+  theme(axis.title=element_text(size=15),
+        legend.text=element_text(size=10))
+ggsave(filename =paste0(path_graph,"/Theta_",t,"_",s,"_GG.png"),
+       plot =GG1) 
+```
+
+
+```{r}
+# Simul -------------------------------------------------------------------
+estimator_95_simul<-apply(Angle_simul,MARGIN =2,
+                          function(x){return(as.numeric(quantile(x,0.95)))})
+estimator_05_simul<-apply(Angle_simul,MARGIN =2,
+                          function(x){return(as.numeric(quantile(x,0.05)))})
+estimator_50_simul<-apply(Angle_simul,MARGIN =2,
+                          function(x){return(as.numeric(quantile(x,0.50)))})
+estimator_975_simul<-apply(Angle_simul,MARGIN =2,
+                           function(x){return(as.numeric(quantile(x,0.975)))})
+
+### data estimator
+estimator_05<-apply(Angle_obs,MARGIN =2,
+                    function(x){return(as.numeric(quantile(x,0.05)))})
+estimator_95<-apply(Angle_obs,MARGIN =2,
+                    function(x){return(as.numeric(quantile(x,0.95)))})
+estimator_975<-apply(Angle_obs,MARGIN =2,
+                     function(x){return(as.numeric(quantile(x,0.975)))})
+estimator_05<-apply(Angle_obs,MARGIN =2,
+                    function(x){return(as.numeric(quantile(x,0.05)))})
+estimator_50<-apply(Angle_obs,MARGIN =2,
+                    function(x){return(as.numeric(quantile(x,0.50)))})
+```
+
+
+```{r}
+N_rep<-500
+B<-nrow(Pareto_obs)
+N_rep<-500
+lq<-c(0.05,0.50,0.95,0.975)
+Tend<-replicate(n =N_rep,expr = Resamples_tendencies(B = B,
+                                                    extremes_indus=Angle_obs,
+                                                     list_Q =lq))
+```
+
+```{r}
+bound_minus05<-apply(Tend[1,,],MARGIN = 1,
+                     FUN = function(x){return(quantile(x,0.025))})
+bound_plus05<-apply(Tend[1,,],MARGIN = 1,
+                    FUN = function(x){return(quantile(x,0.975))})
+
+##########
+bound_minus50<-apply(Tend[2,,],MARGIN = 1,
+                     FUN = function(x){return(quantile(x,0.025))})
+bound_plus50<-apply(Tend[2,,],MARGIN = 1,
+                    FUN = function(x){return(quantile(x,0.975))})
+
+########
+bound_minus95<-apply(Tend[3,,],MARGIN = 1,
+                     FUN = function(x){return(quantile(x,0.025))})
+bound_plus95<-apply(Tend[3,,],MARGIN = 1,
+                    FUN = function(x){return(quantile(x,0.975))})
+
+######
+bound_minus975<-apply(Tend[4,,],MARGIN = 1,
+                      FUN = function(x){return(quantile(x,0.025))})
+bound_plus975<-apply(Tend[4,,],MARGIN = 1,
+                     FUN = function(x){return(quantile(x,0.975))})
+
+# Graphics ----------------------------------------------------------------
+
+df<-cbind.data.frame(c(estimator_05,estimator_50,estimator_95,estimator_975),
+                     c(bound_minus05,bound_minus50,
+                       bound_minus95,bound_minus975),
+                     c(bound_plus05,bound_plus50,
+                       bound_plus95,bound_plus975))
+colnames(df)<-c("estimator","bound_minus","bound_plus")
+
+df$estimator_simul<-c(estimator_05_simul,estimator_50_simul
+                      ,estimator_95_simul,estimator_975_simul)
+df$Time<-rep(c(1:ncol(Angle_obs)),4)
+df$percent<-c(rep("Q05",ncol(Angle_obs)),
+              rep("Q50",ncol(Angle_obs)),
+              rep("Q95",ncol(Angle_obs)), 
+              rep("Q975",ncol(Angle_obs)))
+
+```
+
+```{r}
+Unit_variable<-"-"
+GG_percent<-ggplot(data=df,aes(x=Time,y=estimator,group=interaction(percent),col="data"))+
+    facet_wrap(~percent,scales="free_y")+
+    geom_line()+
+    geom_point()+
+    geom_ribbon(mapping = aes(ymin=bound_minus,ymax=bound_plus,col="confidence_band"),alpha=0.15,
+                fill="grey", linetype = "dashed")+
+    geom_line(aes(x=Time,y=estimator_simul,col="simulations"),linetype=2)+
+    theme(axis.title=element_text(size=15))+
+    ylab(paste0("value ",Unit_variable))+
+    scale_color_manual(values=cols_)+
+    xlab("Time")+
+    labs(col="Legend")
+```
+
+```{r}
+GG_percent
+ggsave(plot=GG_percent,
+       filename = paste0(path_graph,"/sim_vs_obs_tend_ThetaPTO.png"),
+       width=8,height=6)
 ```
 
 
@@ -467,7 +634,7 @@ combined<-(GG_orig|GG_Pareto)
 require(patchwork)
 All_orig_ext<-patchwork::wrap_elements(full = combined) / patchwork::wrap_elements(shared_xlab) +
   plot_layout(heights = c(1, 0.05))
-ggsave(paste0("Graphics/exs_",Name_v,".png"),
+ggsave(paste0(path_graph,"/exs_",Name_v,".png"),
        plot = All_orig_ext,
        width=12,
        height=7)
@@ -682,7 +849,7 @@ top_row<-(GG1 + GG2)
 Second_row<-plot_spacer() + GG3 + plot_spacer()+ 
   plot_layout(widths = c(0.5, 1,0.5))
 All_PCA_coords<-top_row/Second_row
-ggsave(filename = paste0("Graphics/theta_coords_",Name_v,"_all.png"),
+ggsave(filename = paste0(path_graph,"/theta_coords_",Name_v,"_all.png"),
        plot = All_PCA_coords,
        width = 12,
        height = 9)
@@ -829,7 +996,7 @@ Z_cop<-matrix(Dens_iso,nrow = length(xunif), ncol = length(yunif))
 
 ```{r}
 ### Represent levels at uniform scale
-png(filename = paste0("Graphics/compar_data_copula_",
+png(filename = paste0(path_graph,"/compar_data_copula_",
                       Copula_chosen,"_unif.png"),
     width=1400,height=500)
 par(mfrow=c(1,2),
@@ -903,7 +1070,7 @@ z <- matrix(Dens_found,nrow = length(x), ncol = length(y))
 
 ```{r}
 ### plot level plots
-png(filename = paste0("Graphics/compar_data_copula_",Copula_chosen,".png"),width=1400,
+png(filename = paste0(path_graph,"/compar_data_copula_",Copula_chosen,".png"),width=1400,
     height=500)
 par(mfrow=c(1,2),
     mar=c(5.5, 5.5, 5.5,5.5))

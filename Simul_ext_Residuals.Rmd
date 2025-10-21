@@ -44,11 +44,21 @@ link_data<-paste0("residuals/",name_variable,
 std_data<-TRUE
 p_U<-rep(0.10,37)
 p_L2<-0.05
-NB_dim_PCA<-5
+NB_dim_PCA<-3
 opt_Frech<-TRUE
 M<-2000
 n.dens<-2^(14)
 ```
+
+```{r}
+
+### Sub folder for Graphics
+path_graph<-paste0(getwd(),"/Graphics/",name_variable)
+try({
+  dir.create(file.path(path_graph))
+})
+```
+
 
 ```{r}
 Data<-read.csv(file=link_data)[,2:38]
@@ -109,6 +119,11 @@ rownames(vector_pareto)<-1:nrow(vector_pareto)
 colnames(vector_pareto)<-c(1:ncol(vector_pareto))
 ```
 
+```{r}
+Graphics_estimators_gamma(series = vector_norm_L2,vect_k = c(50:300),
+                             Title_graphic  = "Extreme of L2 after transformation")
+```
+
 
 ```{r}
 # Selection of extreme time series 
@@ -138,6 +153,19 @@ Analyse<-FactoMineR::PCA(X =Comp_angular,
                          scale.unit = std_data,
                          ncp = NB_dim_PCA,graph = FALSE)
 ```
+
+```{r}
+png(paste0(path_graph,"/Behaviour_PCA_",name_variable,"_1_2.png"))
+plot(Analyse,choix = "var")
+dev.off()
+```
+
+```{r}
+png(filename = paste0(path_graph,"/Behaviour_PCA_",name_variable,"_2_3.png"))
+plot(Analyse,choix = "var",axes = c(2:3))
+dev.off()
+```
+
 
 We keep the first $J$ eigenvectors. Thus, we reduce the problem dimension as we only approach the law of the first two coordinates.
 ```{r}
@@ -209,7 +237,7 @@ title(paste0("Comparing the observations and simulations for ", name_variable),o
 
 ```{r}
 ### Comparing simulated and data coordinates for the last dimensions.
-plot(dataUnif[,2],dataUnif[,2],xlab="Second coordinate (observations)",ylab="Third coordinate (observations)")
+plot(dataUnif[,2],dataUnif[,3],xlab="Second coordinate (observations)",ylab="Third coordinate (observations)")
 
 plot(Realisations_copulas[,2],Realisations_copulas[,3],col="red",xlab="Second coordinate",ylab="Third coordinate")
 title(paste0("Comparing the observations and simulations for ", name_variable),outer = TRUE,line=-3)
