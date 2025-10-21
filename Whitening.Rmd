@@ -35,7 +35,7 @@ clusterExport(CPU_hearts,varlist=F_names)
 
 
 ```{r}
-name_variable<-"U"
+name_variable<-"Surge"
 name_recherche<-paste0("data_detrend_Winter/",name_variable,"_detrend.csv")
 Data<-read.csv(name_recherche)[,c(2:38)]
 colnames(Data)<-c(1:37)
