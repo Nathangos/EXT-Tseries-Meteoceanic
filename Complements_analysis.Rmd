@@ -42,9 +42,16 @@ try({
 ```{r}
 # Importing the simulations 
 #--------------------------------------
+simulations<-read.csv(file =paste0("residuals/Simulations_",Name_v,"_with_std.csv"))
 simulations<-simulations[,c(2:ncol(simulations))]
 colnames(simulations)<-c(1:ncol(simulations))
+
+
+matplot(t(simulations),type="l")
+ind_issue<-which.min(simulations[,1])
+
 M<-melt(t(simulations))
+
 colnames(M)<-c("time","Individu","valeur")
 
 ```
@@ -83,7 +90,7 @@ Min_u<-quantile(series_t,Q1)
 Max_u<-quantile(series_t,Q2)
 
 POT::mrlplot(data = series_t,u.range = c(Min_u,Max_u),
-             main=paste0("Mean residual life plot pour ",Name_v," en t=",t))
+             main=paste0("Mean residual life plot for ",Name_v," at t=",t))
 abline(v=Seuil,col="red")
 
 par(mfrow=c(1,2))
@@ -373,8 +380,8 @@ max_theta<-max(max(apply(X = Angle_obs,MARGIN = 2,FUN =max)),
 
 ```{r}
 par(mfrow=c(1,2))
-matplot(t(Angle_obs),ylim=c(min_theta,max_theta),type="l")
-matplot(t(Angle_simul),ylim=c(min_theta,max_theta),type="l")
+matplot(t(Angle_obs[c(1:20),]),ylim=c(min_theta,max_theta),type="l")
+matplot(t(Angle_simul[c(1:20),]),ylim=c(min_theta,max_theta),type="l")
 par(mfrow=c(1,1))
 ```
 ```{r}
@@ -654,7 +661,9 @@ ggsave(paste0(path_graph,"/exs_",Name_v,".png"),
 # original scale ----------------------------------------------------------
 NL2<-apply(X = obs_exts,MARGIN = 1,FUN = calcul_norm_L2)
 Theta<-t(t(obs_exts)%*%diag(NL2^(-1)))
-matplot(t(Theta),type="l")
+matplot(Time, t(Theta),type="l",
+        xlab="Time (hour) with respect to tidal peak",
+        ylab="value (m)",main="Angle of extreme observations")
 Analyse_theta<-FactoMineR::PCA(X = Theta,scale.unit =TRUE,graph = FALSE)
 lambdos<-Analyse_theta$eig[,1]
 Coords<-Analyse_theta$ind$coord[,1:3]
