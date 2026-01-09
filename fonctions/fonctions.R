@@ -1253,18 +1253,22 @@ cdf_cond_value<-function(quantile_emp,simul_ext,series,seuil,inds_exts){
   series_tronq<-subset(simul_ext,simul_ext>seuil)
   prop_ext_estim<-mean(as.numeric((series_tronq<quantile_emp)))
   
-  # prob A,B|C
+  # prob A,C|B
   first_elt<-prop_ext_estim*prop_c_knownb
   
   #prob C^c|B
   inds_non_exts<-c(1:length(series))[-inds_exts]
   prop_b_cT<-length(intersect(inds_non_exts,Inds_B))/length(series)
   
-  # non_ext -----------------------------------------------------------------
+  # prob(A|C^(c),B) -----------------------------------------------------------------
   series_above_nonext<-subset(series[-inds_exts],
                               series[-inds_exts]>seuil)
   prop_non_ext_estim<-mean(as.numeric(series_above_nonext<quantile_emp))
+  
+  # prob A,C^(c)|B
   second_elt<-prop_non_ext_estim*(prop_b_cT/prop_b)
+  
+  # prob A|B
   return(first_elt+second_elt)
 }
 
