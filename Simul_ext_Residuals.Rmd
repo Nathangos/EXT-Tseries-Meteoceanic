@@ -202,19 +202,84 @@ COEFF<-reals_P_std*v_threshd
 if(NB_dim_PCA==2){
   ### Code for bivariate vectors.
   Family_chosen<-BiCopSelect(dataUnif[,1],dataUnif[,2])
-  Realisations_copulas<-BiCopSim(N=M,family =Family_chosen$family,par = Family_chosen$par,par2 =Family_chosen$par2,check.pars = TRUE)
-  Summary_cop<-summary(Family_chosen)
   
 }else{
   # Vine copula to model the coordinate law for J>2
   matrix_C<-function_Structure_Matrix(NB_dim = NB_dim_PCA)
   Family_chosen<-VineCopula::RVineCopSelect(dataUnif[,c(1:NB_dim_PCA)],Matrix = matrix_C)
-  Code_used<-summary(Family_chosen)$family
-  Summary_cop<-summary(Family_chosen)
-  write.csv(x = Code_used,file =paste0("residuals/PCA_results/",name_variable,"_modele_Vine.txt"))
-  Realisations_copulas<-VineCopula::RVineSim(N=M,RVM = Family_chosen) 
+  
 }
 
+```
+```{r}
+### Second best model for the first pair 
+### Use Tawn instead of t copula for the first pair 
+### Reminder) Asymptotic Dependence with the t copula 
+### vs asymptotic independence in the pair of coordinates
+
+### Using true make us use the second best model for the first pair
+## of coordinates. 
+SBT<-TRUE
+if(SBT==TRUE){
+  FAMILY_set<-c(1:40,104,114,
+              124,134,204,214,
+              224,234)
+  # Create a results data frame
+  
+  results_all<-sapply(FAMILY_set,FUN = FIT_cop
+                      ,u1=dataUnif[,1],u2=dataUnif[,2])
+  Val<-sapply(results_all,FUN=function(x){
+    return(length(x))
+  })
+  Ind_pos<-which(Val>0)
+  List_pos<-lapply(Ind_pos,FUN=function(x){
+    results_all[[x]]})
+  DF<-t(cbind(sapply(List_pos,unlist)))
+  DF<-as.data.frame(DF)
+  DF$AIC<-round(as.numeric(DF$AIC),2)
+  DF$LogLik<-round(as.numeric(DF$LogLik),2)
+  DF$BIC<-round(as.numeric(DF$BIC),2)
+  Sort_df<-head(DF[order(DF$AIC),c(1:5) ],5)
+  Name<-Sort_df[2,1]
+  Family_SB<-VineCopula::BiCopName(family = Name)
+  
+  ## Par, par2 from Model
+  Theta_estim<-BiCopEst(dataUnif[,1],dataUnif[,2],
+           family = Family_SB)
+  par_ij<-Theta_estim$par
+  par2_ij<-Theta_estim$par2
+  
+  ## Update_mod
+  Par_mat<-Family_chosen$par
+  Par2_mat<-Family_chosen$par2
+  Fm_mat<-Family_chosen$family
+  Par_mat[3,2]<-par_ij
+  Par2_mat[3,2]<-par2_ij
+  Fm_mat[3,2]<-Family_SB
+  ## New object
+  Family_chosen<-VineCopula::RVineMatrix(Matrix = matrix_C,
+                family = Fm_mat
+                ,par = Par_mat
+                ,par2 = Par2_mat)
+}
+
+```
+```{r}
+### New copula model
+Family_chosen
+```
+
+```{r}
+if(NB_dim_PCA==2){
+  Realisations_copulas<-BiCopSim(N=M,family =Family_chosen$family,par = Family_chosen$par,par2 =Family_chosen$par2,check.pars = TRUE)
+}else{
+  Realisations_copulas<-VineCopula::RVineSim(N=M,RVM = Family_chosen) 
+}
+Code_used<-summary(Family_chosen)$family
+Summary_cop<-summary(Family_chosen)
+write.csv(x = Code_used,
+  file=paste0("residuals/PCA_results/",
+          name_variable,"_modele_Vine.txt"))
 ```
 
 ```{r}
@@ -223,7 +288,6 @@ Export_copula_model(NB_dim_PCA = NB_dim_PCA,
                       name_variable =name_variable ,
                       Summary_cop = Summary_cop)  
 ```
-
 
 ```{r}
 # Comparing simulations from the copula model with data coordinates (first dimensions)

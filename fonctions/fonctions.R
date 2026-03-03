@@ -1312,6 +1312,37 @@ Resamples_tendencies<-function(extremes_indus,B,list_Q){
   return(LIST_results)
 }
 
+#' FIT_cop
+#'
+#' @param u1: vector[float]. First coordinate (uniform margins)
+#' @param u2: vector[float]. Second coordinate (uniform margins)
+#' @param fam: vector[int]. Several copula family numbers. 
+#'
+#' @return Modelling results of each copula family. 
+#' @export
+#'
+#' @examples
+FIT_cop<-function(u1,u2,fam){
+  
+  fit <- tryCatch({
+    VineCopula::BiCopEst(u1, u2, family = fam)
+  }, error = function(e) return(NULL))
+  results<-list()
+  if (!is.null(fit)) {
+    k <- length(fit$par) + length(fit$par2)  # total number of parameters
+    loglik <- fit$logLik
+    aic <- 2 * k - 2 * loglik
+    BIC<-fit$BIC
+    results$FamilyName <- VineCopula::BiCopName(fam,short = FALSE)
+    results$LogLik <- loglik
+    results$par<-fit$par
+    results$par2<-fit$par2
+    results$AIC <- aic
+    results$BIC<-BIC
+    
+  }
+  return(results)
+}
 
 # Functions_graphic -------------------------------------------------------
 
